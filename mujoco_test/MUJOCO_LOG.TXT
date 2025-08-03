@@ -109,3 +109,6 @@ ERROR: could not create window
 Tue Jun 10 18:39:05 2025
 ERROR: could not create window
 
+Sun Jul 20 20:03:43 2025
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 4.9800.
+

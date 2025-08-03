@@ -1,16 +1,16 @@
 import torch
 
 # 1. 加载原始 checkpoint
-path = "/home/yd/program/rsl_rl_teacher_student/legged_gym/logs/rough_go2/TS_re3/model_9000.pt"
+path = "/home/yd/program/legged_ball_catching-1/legged_gym/logs/rough_go2/33-5/model_10000.pt"
 ckpt = torch.load(path, map_location="cpu")
 model_dict = ckpt["model_state_dict"]
 
 # 2. 提取 proprioceptive_encoder
-prop_keys = [k for k in model_dict if k.startswith("proprioceptive_encoder.")]
-prop_dict = {
-    k.replace("proprioceptive_encoder.", ""): model_dict[k]  # 移除前缀
-    for k in prop_keys
-}
+# prop_keys = [k for k in model_dict if k.startswith("proprioceptive_encoder.")]
+# prop_dict = {
+#     k.replace("proprioceptive_encoder.", ""): model_dict[k]  # 移除前缀
+#     for k in prop_keys
+# }
 
 # 3. 提取 actor
 actor_keys = [k for k in model_dict if k.startswith("actor.")]
@@ -20,8 +20,8 @@ actor_dict = {
 }
 
 # 4. 保存为 .pth
-torch.save(prop_dict, "proprio_oracle_TS_re3.pth")
-print("✅ 已保存 proprio_oracle.pth")
+# torch.save(prop_dict, "proprio_oracle.pth")
+# print("✅ 已保存 proprio_oracle.pth")
 
-torch.save(actor_dict, "actor_oracle_TS_re3.pth")
+torch.save(actor_dict, "actor_oracle33-5-10000.pth")
 print("✅ 已保存 actor_oracle.pth")

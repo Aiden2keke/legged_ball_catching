@@ -33,6 +33,7 @@ from time import time
 from warnings import WarningMessage
 import numpy as np
 import os
+import math
 
 from isaacgym.torch_utils import *
 from isaacgym import gymtorch, gymapi, gymutil
@@ -65,7 +66,7 @@ class LeggedRobot(BaseTask):
         self.cfg = cfg
         self.sim_params = sim_params
         self.height_samples = None
-        self.debug_viz = False
+        self.debug_viz = True
         self.init_done = False
         self._parse_cfg(self.cfg)
         super().__init__(self.cfg, sim_params, physics_engine, sim_device, headless)
@@ -102,6 +103,20 @@ class LeggedRobot(BaseTask):
             self.privileged_obs_buf = torch.clip(self.privileged_obs_buf, -clip_obs, clip_obs)
         return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
 
+    def compute_foot_state(self):
+        self.feet_state = self.rigid_body_state[:, self.feet_indices, :]
+        self.foot_quat = self.rigid_body_state.view(self.num_envs, self.num_bodies, 13)[
+            :, self.feet_indices, 3:7
+        ]
+        self.foot_positions = self.rigid_body_state.view( # 这里再次从最新的 rigid_body_state 中提取位置
+            self.num_envs, self.num_bodies, 13
+        )[:, self.feet_indices, 0:3]
+        self.foot_velocities = (
+            self.foot_positions - self.last_foot_positions
+        ) / self.dt
+
+        #... (其他足部状态的计算，例如角速度、相对速度、足部高度等)...
+
     def post_physics_step(self):
         """ check terminations, compute observations and rewards
             calls self._post_physics_step_callback() for common computations 
@@ -109,6 +124,8 @@ class LeggedRobot(BaseTask):
         """
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
+
+        self.compute_foot_state()
 
         self.episode_length_buf += 1
         self.common_step_counter += 1
@@ -129,11 +146,75 @@ class LeggedRobot(BaseTask):
         self.compute_observations() # in some cases a simulation step might be required to refresh some obs (for example body positions)
 
         self.last_actions[:] = self.actions[:]
+        self.last_last_actions[:] = self.last_actions[:]
         self.last_dof_vel[:] = self.dof_vel[:]
         self.last_root_vel[:] = self.root_states[:, 7:13]
+        self.last_foot_velocities = self.foot_velocities.clone()
 
         if self.viewer and self.enable_viewer_sync and self.debug_viz:
             self._draw_debug_vis()
+            self.gym.clear_lines(self.viewer)
+        # 如果还没创建 target sphere asset，就创建一个全局复用的
+            if not hasattr(self, "tgt_sphere_geom"):
+        # 一个半径 0.05 的蓝色球
+                self.tgt_sphere_geom = gymutil.WireframeSphereGeometry(0.05, 8, 8, None, color=(0, 0, 1))
+ 
+            line_vertices = []
+            line_colors = []
+
+            for i in range(self.num_envs):
+        # 当前根位置 (x, y, z)
+                pos = self.root_states[i, :3].cpu().numpy()
+
+        # 目标位置
+                tgt = self.position_targets[i].cpu().numpy()
+        # —— 绘制目标点小蓝球 ——  
+                sphere_pose = gymapi.Transform(
+                    gymapi.Vec3(*tgt),
+                    None
+                )
+        # draw_lines 接受 wireframe 其实也可以用 draw_lines 画球
+                gymutil.draw_lines(self.tgt_sphere_geom, self.gym, self.viewer, self.envs[i], sphere_pose)
+        # —— 绿线：pos → tgt ——  
+                line_vertices += [pos, tgt]
+                line_colors  += [[0,1,0]]
+        # 朝向箭头：红色直线
+                fw = quat_apply(self.base_quat[i], self.forward_vec[i]).cpu().numpy()
+                head_len = 1.0
+                start = pos
+                end   = pos + fw * head_len
+
+                line_vertices += [start, end]
+                line_colors += [[1, 0, 0]]
+            #加粗红线
+                offset = 0.02  # 世界坐标里的微小偏移
+                normal = np.array([-fw[1], fw[0], 0.0])
+                normal = normal / (np.linalg.norm(normal)+1e-6) * offset
+                for sign in [+1,-1]:
+                    line_vertices += [pos+normal*sign, end+normal*sign]
+                    line_colors  += [[1,0,0]]
+            # 箭头 “箭头” 两条小叉  
+            # 在箭杆末端画两条短线，长度取 head_len*0.2，夹角 30°
+                angle = math.radians(30)
+                rot1 = np.array([[math.cos(angle), -math.sin(angle)], [math.sin(angle), math.cos(angle)]])
+                rot2 = np.array([[math.cos(-angle), -math.sin(-angle)], [math.sin(-angle), math.cos(-angle)]])
+                dir_xy = fw[:2] / (np.linalg.norm(fw[:2]) + 1e-6)
+            # 2D rotate
+                left  = rot1.dot(dir_xy) * head_len * 0.2
+                right = rot2.dot(dir_xy) * head_len * 0.2
+            # 构建两个叉  
+                v1 = end
+                v2 = end - np.array([left[0], left[1], 0.0])
+                v3 = end
+                v4 = end - np.array([right[0], right[1], 0.0])
+                line_vertices += [v1, v2, v3, v4]
+                line_colors  += [[1, 0, 0]] * 2
+    # 转 numpy 数组
+            vertices_np = np.array(line_vertices, dtype=np.float32).reshape(-1, 3)
+            colors_np   = np.array(line_colors, dtype=np.float32)
+    # 添加所有线条
+            num_lines = len(colors_np)
+            self.gym.add_lines(self.viewer, self.envs[0], num_lines, vertices_np, colors_np)
 
     def check_termination(self):
         """ Check if environments need to be reset
@@ -170,10 +251,12 @@ class LeggedRobot(BaseTask):
 
         # reset buffers
         self.last_actions[env_ids] = 0.
+        self.last_last_actions[env_ids] = 0.
         self.last_dof_vel[env_ids] = 0.
         self.feet_air_time[env_ids] = 0.
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
+        self.last_foot_velocities[env_ids] = 0.
         # fill extras
         self.extras["episode"] = {}
         for key in self.episode_sums.keys():
@@ -183,10 +266,15 @@ class LeggedRobot(BaseTask):
         if self.cfg.terrain.curriculum:
             self.extras["episode"]["terrain_level"] = torch.mean(self.terrain_levels.float())
         if self.cfg.commands.curriculum:
-            self.extras["episode"]["max_command_x"] = self.command_ranges["lin_vel_x"][1]
+            self.extras["episode"]["max_pos_1"] = self.command_ranges["pos_1"][1]
+            self.extras["episode"]["max_pos_2"] = self.command_ranges["pos_2"][1]
         # send timeout info to the algorithm
         if self.cfg.env.send_timeouts:
             self.extras["time_outs"] = self.time_out_buf
+        # for i in env_ids:
+        #     distance = torch.norm(self.position_targets[i, :2] - self.root_states[i, :2])
+        #     if distance < self.cfg.rewards.position_target_sigma_tight:
+        #         self.dof_pos[i] = self.default_dof_pos
     
     def compute_reward(self):
         """ Compute rewards
@@ -356,7 +444,7 @@ class LeggedRobot(BaseTask):
             else:
                 self.position_targets[tbd_envs, 0:1] = self.env_origins[tbd_envs, 0:1] + _target_pos1
                 self.position_targets[tbd_envs, 1:2] = self.env_origins[tbd_envs, 1:2] + _target_pos2
-            self.position_targets[tbd_envs, 2] = self.env_origins[tbd_envs,2] + 0.5
+            self.position_targets[tbd_envs, 2] = self.env_origins[tbd_envs,2] + 0.4
 
             pos_diff = self.position_targets[tbd_envs] - self.root_states[tbd_envs, 0:3]
             self.heading_targets[tbd_envs, :] = wrap_to_pi(_target_heading + torch.atan2(pos_diff[:,1:2],pos_diff[:,0:1]))
@@ -479,9 +567,10 @@ class LeggedRobot(BaseTask):
         """
         # If the tracking reward is above 80% of the maximum, increase the range of commands
         if torch.mean(self.episode_sums["tracking_lin_vel"][env_ids]) / self.max_episode_length > 0.8 * self.reward_scales["tracking_lin_vel"]:
-            self.command_ranges["lin_vel_x"][0] = np.clip(self.command_ranges["lin_vel_x"][0] - 0.5, -self.cfg.commands.max_curriculum, 0.)
-            self.command_ranges["lin_vel_x"][1] = np.clip(self.command_ranges["lin_vel_x"][1] + 0.5, 0., self.cfg.commands.max_curriculum)
-
+            self.command_ranges["pos_1"][0] = np.clip(self.command_ranges["pos_1"][0] - 0.1, self.cfg.commands.min_pos_1, 0.)
+            self.command_ranges["pos_1"][1] = np.clip(self.command_ranges["pos_1"][1] + 0.1, 0., self.cfg.commands.max_pos_1)
+            self.command_ranges["pos_2"][0] = np.clip(self.command_ranges["pos_2"][0] - 0.1, self.cfg.commands.min_pos_2, 0.)
+            self.command_ranges["pos_2"][1] = np.clip(self.command_ranges["pos_2"][1] + 0.1, 0., self.cfg.commands.max_pos_2)
 
     def _get_noise_scale_vec(self, cfg):
         """ Sets a vector used to scale the noise added to the observations.
@@ -540,6 +629,12 @@ class LeggedRobot(BaseTask):
         self.d_gains = torch.zeros(self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
         self.actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
         self.last_actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device, requires_grad=False)
+        self.last_last_actions = torch.zeros(
+            self.num_envs,
+            self.num_actions,
+            dtype=torch.float,
+            device=self.device,
+            requires_grad=False)
         self.last_dof_vel = torch.zeros_like(self.dof_vel)
         self.last_root_vel = torch.zeros_like(self.root_states[:, 7:13])
         self.commands = torch.zeros(self.num_envs, self.cfg.commands.num_commands, dtype=torch.float, device=self.device, requires_grad=False) # x vel, y vel, yaw vel, heading
@@ -559,6 +654,24 @@ class LeggedRobot(BaseTask):
         self.commands = torch.zeros(self.num_envs, 3, dtype=torch.float, device=self.device, requires_grad=False)
         self.position_targets = torch.zeros(self.num_envs, 3, dtype=torch.float, device=self.device, requires_grad=False)
         self.heading_targets = torch.zeros(self.num_envs, 1, dtype=torch.float, device=self.device, requires_grad=False)
+        #_reward_feet_distance
+        rigid_body_state = self.gym.acquire_rigid_body_state_tensor(self.sim)
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
+        self.rigid_body_state = gymtorch.wrap_tensor(rigid_body_state).view(
+            self.num_envs, self.num_bodies, -1
+        )
+        self.feet_state = self.rigid_body_state[:, self.feet_indices, :]
+        self.foot_positions = self.rigid_body_state.view(
+            self.num_envs, self.num_bodies, 13 # 这里明确指定了13个分量 (pos, quat, lin_vel, ang_vel)
+        )[:, self.feet_indices, 0:3] # 提取足部的XYZ位置
+        self.last_foot_positions = torch.zeros_like(self.foot_positions)
+        self.foot_heights = torch.zeros_like(self.foot_positions)
+        self.foot_velocities = torch.zeros_like(self.foot_positions)
+        self.foot_velocities_f = torch.zeros_like(self.foot_positions)
+        self.foot_relative_velocities = torch.zeros_like(self.foot_velocities)
+        self.last_foot_velocities = torch.zeros_like(self.foot_velocities)
+        #_reward_knee_distance
+        # self.rigid_state = gymtorch.wrap_tensor(rigid_body_state).view(self.num_envs, -1, 13)
 
         # joint positions offsets and PD gains
         self.default_dof_pos = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
@@ -735,6 +848,11 @@ class LeggedRobot(BaseTask):
         self.termination_contact_indices = torch.zeros(len(termination_contact_names), dtype=torch.long, device=self.device, requires_grad=False)
         for i in range(len(termination_contact_names)):
             self.termination_contact_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], termination_contact_names[i])
+        # knee indices
+        # knee_names = [s for s in body_names if self.cfg.asset.knee_name in s]
+        # self.knee_indices = torch.zeros(len(knee_names), dtype=torch.long, device=self.device, requires_grad=False)
+        # for i in range(len(knee_names)):
+        #     self.knee_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], knee_names[i])
 
     def _get_env_origins(self):
         """ Sets environment origins. On rough terrain the origins are defined by the terrain platforms.
@@ -780,7 +898,7 @@ class LeggedRobot(BaseTask):
             Default behaviour: draws height measurement points
         """
         # draw height lines
-        if not self.terrain.cfg.measure_heights:
+        if not self.cfg.terrain.measure_heights:
             return
         self.gym.clear_lines(self.viewer)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
@@ -879,6 +997,10 @@ class LeggedRobot(BaseTask):
     def _reward_base_height(self):
         # Penalize base height away from target
         base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
+        # print("root_states:", self.root_states[:, 2])
+        # print("measured_heights:", self.measured_heights)
+        # print("Base height:", base_height)
+        # print("Base height target:", self.cfg.rewards.base_height_target)
         return torch.square(base_height - self.cfg.rewards.base_height_target)
     
     def _reward_torques(self):
@@ -902,8 +1024,11 @@ class LeggedRobot(BaseTask):
         return torch.sum(1.*(torch.norm(self.contact_forces[:, self.penalised_contact_indices, :], dim=-1) > 0.1), dim=1)
     
     def _reward_termination(self):
-        # Terminal reward / penalty
-        return self.reset_buf * ~self.time_out_buf
+        # Terminal reward / penalty; 5x penalty for dying in the rew_duration near goal
+        ##### ABS #####
+        distance = torch.norm(self.position_targets[:, :2] - self.root_states[:, :2], dim=1)
+        return (self.reset_buf * ~self.time_out_buf) * (1.0 + \
+                    4.0 * self._command_duration_mask(self.cfg.rewards.rew_duration/2) * (distance < self.cfg.rewards.position_target_sigma_tight))
     
     def _reward_dof_pos_limits(self):
         # Penalize dof positions too close to the limit
@@ -956,6 +1081,7 @@ class LeggedRobot(BaseTask):
         # penalize high contact forces
         return torch.sum((torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1) -  self.cfg.rewards.max_contact_force).clip(min=0.), dim=1)
     
+    ##### ABS #####
     def _command_duration_mask(self, duration):
         mask = self.timer_left <= duration 
         return mask / duration
@@ -963,10 +1089,12 @@ class LeggedRobot(BaseTask):
     def _reward_reach_pos_target_soft(self):
         distance = torch.norm(self.position_targets[:, :2] - self.root_states[:, :2], dim=1)
         return (1. /(1. + torch.square(distance / self.cfg.rewards.position_target_sigma_soft))) * self._command_duration_mask(self.cfg.rewards.rew_duration)
+        # return (1. /(1. + distance / self.cfg.rewards.position_target_sigma_soft)) * self._command_duration_mask(self.cfg.rewards.rew_duration)
 
     def _reward_reach_pos_target_tight(self):
         distance = torch.norm(self.position_targets[:, :2] - self.root_states[:, :2], dim=1)
         return (1. /(1. + torch.square(distance / self.cfg.rewards.position_target_sigma_tight))) * self._command_duration_mask(self.cfg.rewards.rew_duration/2)
+        # return (1. /(1. + distance / self.cfg.rewards.position_target_sigma_tight)) * self._command_duration_mask(self.cfg.rewards.rew_duration/2)
     
     def _reward_reach_heading_target(self):
         distance = torch.norm(self.position_targets[:, :2] - self.root_states[:, :2], dim=1)
@@ -1029,3 +1157,68 @@ class LeggedRobot(BaseTask):
         distance = torch.norm(self.position_targets[:, :2] - self.root_states[:, :2], dim=1)
 
         return static * bad_dir * 1.0 * (distance > self.cfg.rewards.position_target_sigma_soft)
+    
+    ##### another #####
+    def _reward_feet_distance(self):
+        # Penalize base height away from target
+        feet_distance = torch.norm(self.foot_positions[:, 0, :2] - self.foot_positions[:, 2, :2], dim=-1)
+        reward = torch.clip(self.cfg.rewards.min_feet_distance - feet_distance, -1, 1)
+        return reward
+    
+    # def _reward_knee_distance(self):
+    #     """
+    #     Calculates the reward based on the distance between the knee of the humanoid.
+    #     """
+    #     foot_pos = self.rigid_state[:, self.knee_indices, :2]
+    #     foot_dist = torch.norm(foot_pos[:, 0, :] - foot_pos[:, 1, :], dim=1)
+    #     fd = self.cfg.rewards.min_dist
+    #     max_df = self.cfg.rewards.max_dist / 2
+    #     d_min = torch.clamp(foot_dist - fd, -0.5, 0.)
+    #     d_max = torch.clamp(foot_dist - max_df, 0, 0.5)
+    #     return (torch.exp(-torch.abs(d_min) * 100) + torch.exp(-torch.abs(d_max) * 100)) / 2
+
+    def _reward_velo_lim(self):
+        ##### ZYD #####
+        distance = torch.norm(self.position_targets[:, :2] - self.root_states[:, :2], dim=1)
+        velocity = torch.norm(self.base_lin_vel[:, :2], dim=1)
+        mask = (distance < self.cfg.rewards.position_target_sigma_tight) & (velocity > self.cfg.rewards.velocity_target_sigma_tight)
+        reward = torch.zeros_like(distance)
+        reward[mask] = 1
+        return reward
+    
+    ##### need #####
+    def _reward_action_smoothness(self):
+        # Penalize changes in actions
+        return torch.sum(torch.square(self.actions - 2.* self.last_actions - self.last_last_actions), dim=1)
+
+    def _reward_power(self):
+        # Penalize torques
+        joint_array = [i for i in range(self.num_dof)]
+        # print("num_dof:", self.num_dof)
+        # print("joint_array:", joint_array)
+        # joint_array.remove(3)
+        # joint_array.remove(7)
+        return torch.sum(torch.abs(self.torques[:, joint_array] * self.dof_vel[:, joint_array]), dim=1)
+
+    ##### Advanced Skills by Learning Locomotion and Local Navigation End-to-End #####
+    def _reward_task(self):
+        dist2 = torch.square(torch.norm(self.position_targets[:, :2] - self.root_states[:, :2], dim=1))
+        return self._command_duration_mask(self.cfg.rewards.rew_duration)  * (1.0 / (1.0 + dist2))
+    
+    def _reward_feet_acceleration(self):
+        fdd = (self.foot_velocities - self.last_foot_velocities) / self.dt
+        return torch.sum(torch.square(fdd.view(self.num_envs, -1)), dim=1)
+    
+    def _reward_exploration(self):
+        # 沿目标方向速度余弦
+        vec_to_goal = self.position_targets[:, :2] - self.root_states[:, :2]
+        v = self.base_lin_vel[:, :2]
+        num = torch.sum(v * vec_to_goal, dim=1)
+        den = torch.norm(v, dim=1) * torch.norm(vec_to_goal, dim=1) + 1e-6
+        return num / den
+    
+    def _reward_stalling_penalty(self):
+        v_norm = torch.norm(self.base_lin_vel[:, :2], dim=1)
+        d_norm = torch.norm(self.position_targets[:, :2] - self.root_states[:, :2], dim=1)
+        cond = (v_norm < 0.1) & (d_norm > 0.5)
+        return -cond.float()

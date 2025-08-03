@@ -29,6 +29,7 @@
 # Copyright (c) 2021 ETH Zurich, Nikita Rudin
 
 from .base_config import BaseConfig
+import numpy as np
 
 class LeggedRobotCfg(BaseConfig):
     class env:
@@ -66,17 +67,21 @@ class LeggedRobotCfg(BaseConfig):
         slope_treshold = 0.75 # slopes above this threshold will be corrected to vertical surfaces
 
     class commands:
-        curriculum = False
+        curriculum = True
         max_curriculum = 1.
+        min_pos_1 = 0
+        max_pos_1 = 7.5
+        min_pos_2 = -np.pi
+        max_pos_2 = np.pi
         num_commands = 3 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10. # time before command are changed[s]
         heading_command = True # if true: compute ang vel command from heading error
         max_speed = 0.5  # 机器狗最大速度（m/s）
-        landing_time_min = 2.0   # 最小落地时间（可选）
+        landing_time_min = .50   # 最小落地时间（可选）
         landing_time_max = 10.0   # 最大落地时间（可选）
         class ranges:
-            pos_1 = [1.5, 7.5] # min max [m] 
-            pos_2 = [-2.0, 2.0]  # rad if polar
+            pos_1 = [1.5, 5] # min max [m] 
+            pos_2 = [-1.5, 1.5]  # rad if polar
             heading = [-0.3, 0.3]  # a residual heading plus theta
             use_polar = True
 
@@ -137,27 +142,48 @@ class LeggedRobotCfg(BaseConfig):
 
     class rewards:
         class scales:
-            termination = -100. 
-            reach_pos_target_soft = 60.0
-            reach_pos_target_tight = 60.0
-            reach_heading_target = 30.0
-            reach_pos_target_times_heading = 0.0
-            velo_dir = 10.0
-            torques = -0.0005
-            dof_pos_limits = -20.0
+            termination = -0. ## = task
+            tracking_lin_vel = 1.0
+            tracking_ang_vel = 0.5
+            torques = -0.0005 #check go2_config.py !!!!
+            dof_pos_limits = -20.0 #check go2_config.py !!!!
             dof_vel = -0.0005
-            torque_limits = -20.0
-            dof_vel_limits = -20.0
             lin_vel_z = -2.0
             ang_vel_xy = -0.05
             dof_acc = -2.0e-7
             action_rate = -0.01
             stand_still_pos = -10.0
-            orientation = -20.0
-            nomove = -20.0
+            orientation = -40.0
+            base_height = -10.
+            feet_air_time = 1.0
+            feet_stumble = -0.0
+            collision = -1.
+            action_smoothness = -0.001
+            power = -2e-4
 
-        soft_dof_pos_limit = 0.95
-        base_height_target = 0.25
+            ##### ABS #####
+            reach_pos_target_soft = 60.0
+            reach_pos_target_tight = 30.0
+            # reach_heading_target = 30.0
+            # reach_pos_target_times_heading = 2.0
+            # velo_dir = 10.0
+            # torque_limits = -20.0
+            # dof_vel_limits = -20.0
+            # nomove = -20.0
+
+            # ##### another #####
+            # feet_distance = 0
+            # knee_distance = 0.2
+            # velo_lim = -0
+
+            ##### Advanced Skills by Learning Locomotion and Local Navigation End-to-End #####
+            task = 100 # = termination
+            feet_acceleration = -0.0001
+            exploration = 1
+            stalling_penalty = 1
+
+        soft_dof_pos_limit = 0.95 #check go2_config.py !!!!
+        base_height_target = 0.25 #check go2_config.py !!!!
         only_positive_rewards = False
         position_target_sigma = 0.5
         position_target_sigma_soft = 2.0
@@ -167,6 +193,11 @@ class LeggedRobotCfg(BaseConfig):
         soft_dof_vel_limit = 0.9
         soft_torque_limit = 0.85
         max_contact_force = 100.
+        tracking_sigma = 0.1 # tracking reward = exp(-error^2/sigma)
+        min_feet_distance = 0.2
+        # min_dist = 0.2
+        # max_dist = 0.5
+        velocity_target_sigma_tight = 0.4
 
     class normalization:
         class obs_scales:
