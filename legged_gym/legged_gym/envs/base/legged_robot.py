@@ -566,7 +566,7 @@ class LeggedRobot(BaseTask):
             env_ids (List[int]): ids of environments being reset
         """
         # If the tracking reward is above 80% of the maximum, increase the range of commands
-        if torch.mean(self.episode_sums["tracking_lin_vel"][env_ids]) / self.max_episode_length > 0.8 * self.reward_scales["tracking_lin_vel"]:
+        if torch.mean(self.episode_sums["tracking_lin_vel"][env_ids]) / self.max_episode_length > 0.9 * self.reward_scales["tracking_lin_vel"]:
             self.command_ranges["pos_1"][0] = np.clip(self.command_ranges["pos_1"][0] - 0.1, self.cfg.commands.min_pos_1, 0.)
             self.command_ranges["pos_1"][1] = np.clip(self.command_ranges["pos_1"][1] + 0.1, 0., self.cfg.commands.max_pos_1)
             self.command_ranges["pos_2"][0] = np.clip(self.command_ranges["pos_2"][0] - 0.1, self.cfg.commands.min_pos_2, 0.)
@@ -853,6 +853,31 @@ class LeggedRobot(BaseTask):
         # self.knee_indices = torch.zeros(len(knee_names), dtype=torch.long, device=self.device, requires_grad=False)
         # for i in range(len(knee_names)):
         #     self.knee_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], knee_names[i])
+
+        self.feet_indices = torch.zeros(len(feet_names), dtype=torch.long, device=self.device, requires_grad=False)
+        for i in range(len(feet_names)):
+            self.feet_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], feet_names[i])
+
+        self.penalised_contact_indices = torch.zeros(len(penalized_contact_names), dtype=torch.long, device=self.device, requires_grad=False)
+        for i in range(len(penalized_contact_names)):
+            self.penalised_contact_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], penalized_contact_names[i])
+
+        self.termination_contact_indices = torch.zeros(len(termination_contact_names), dtype=torch.long, device=self.device, requires_grad=False)
+        for i in range(len(termination_contact_names)):
+            self.termination_contact_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], termination_contact_names[i])
+
+        hip_names = ["FR_hip_joint", "FL_hip_joint", "RR_hip_joint", "RL_hip_joint"]
+        self.hip_indices = torch.zeros(len(hip_names), dtype=torch.long, device=self.device, requires_grad=False)
+        for i, name in enumerate(hip_names):
+            self.hip_indices[i] = self.dof_names.index(name)
+        thigh_names = ["FR_thigh_joint", "FL_thigh_joint", "RR_thigh_joint", "RL_thigh_joint"]
+        self.thigh_indices = torch.zeros(len(thigh_names), dtype=torch.long, device=self.device, requires_grad=False)
+        for i, name in enumerate(thigh_names):
+            self.thigh_indices[i] = self.dof_names.index(name)
+        calf_names = ["FR_calf_joint", "FL_calf_joint", "RR_calf_joint", "RL_calf_joint"]
+        self.calf_indices = torch.zeros(len(calf_names), dtype=torch.long, device=self.device, requires_grad=False)
+        for i, name in enumerate(calf_names):
+            self.calf_indices[i] = self.dof_names.index(name)
 
     def _get_env_origins(self):
         """ Sets environment origins. On rough terrain the origins are defined by the terrain platforms.
@@ -1222,3 +1247,18 @@ class LeggedRobot(BaseTask):
         d_norm = torch.norm(self.position_targets[:, :2] - self.root_states[:, :2], dim=1)
         cond = (v_norm < 0.1) & (d_norm > 0.5)
         return -cond.float()
+    
+    ##### Extreme Parkour with Legged Robots #####
+    def _reward_hip_pos(self):
+        return torch.sum(torch.square(self.dof_pos[:, self.hip_indices] - self.default_dof_pos[:, self.hip_indices]), dim=1)
+
+    def _reward_dof_error(self):
+        dof_error = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
+        return dof_error
+    
+    ##### ANYmal-Parkour #####
+    def _reward_stop_yaw_vel(self):
+        # Penalize yaw speed at zero commands
+        return torch.square(self.base_ang_vel[:, 2]) \
+            * (torch.norm(self.commands[:, :2], dim=1) < 0.1) \
+            * (torch.abs(self.commands[:, 2] < 0.2))

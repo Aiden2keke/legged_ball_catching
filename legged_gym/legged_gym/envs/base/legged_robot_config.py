@@ -76,7 +76,7 @@ class LeggedRobotCfg(BaseConfig):
         num_commands = 3 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10. # time before command are changed[s]
         heading_command = True # if true: compute ang vel command from heading error
-        max_speed = 0.5  # 机器狗最大速度（m/s）
+        max_speed = 0.7  # 机器狗最大速度（m/s）
         landing_time_min = .50   # 最小落地时间（可选）
         landing_time_max = 10.0   # 最大落地时间（可选）
         class ranges:
@@ -147,10 +147,10 @@ class LeggedRobotCfg(BaseConfig):
             tracking_ang_vel = 0.5
             torques = -0.0005 #check go2_config.py !!!!
             dof_pos_limits = -20.0 #check go2_config.py !!!!
-            dof_vel = -0.0005
+            dof_vel = -0.0005 * 3
             lin_vel_z = -2.0
             ang_vel_xy = -0.05
-            dof_acc = -2.0e-7
+            dof_acc = -2.0e-7 * 2
             action_rate = -0.01
             stand_still_pos = -10.0
             orientation = -40.0
@@ -158,12 +158,12 @@ class LeggedRobotCfg(BaseConfig):
             feet_air_time = 1.0
             feet_stumble = -0.0
             collision = -1.
-            action_smoothness = -0.001
+            action_smoothness = -0.001 * 2
             power = -2e-4
 
             ##### ABS #####
-            reach_pos_target_soft = 60.0
-            reach_pos_target_tight = 30.0
+            # reach_pos_target_soft = 60.0
+            # reach_pos_target_tight = 30.0
             # reach_heading_target = 30.0
             # reach_pos_target_times_heading = 2.0
             # velo_dir = 10.0
@@ -181,6 +181,13 @@ class LeggedRobotCfg(BaseConfig):
             feet_acceleration = -0.0001
             exploration = 1
             stalling_penalty = 1
+
+            ##### Extreme Parkour with Legged Robots #####
+            # hip_pos = -0.5
+            # dof_error = -0.04
+
+            # ##### ANYmal-Parkour #####
+            stop_yaw_vel = -0.1
 
         soft_dof_pos_limit = 0.95 #check go2_config.py !!!!
         base_height_target = 0.25 #check go2_config.py !!!!

@@ -78,8 +78,8 @@ def set_target_by_key(key):
     # 获取机器人朝向（世界坐标系下）
     # fw = quat_rotate_inverse(body_quat, np.array([1, 0, 0]))  # 前方
     # left = quat_rotate_inverse(body_quat, np.array([0, 1, 0]))  # 左方
-    fw=np.array([0, 1, 0])
-    left=np.array([1, 0, 0])
+    fw=np.array([1, 0, 0])
+    left=np.array([0, 1, 0])
     if key == "up":
         return fw * a, target_time
     elif key == "down":
@@ -135,7 +135,7 @@ data = mujoco.MjData(model)
 device = torch.device("cuda")
 actor = Actor(num_obs=49, num_actions=12, hidden_dims=[512, 256, 128])
 # actor.load_state_dict(torch.load(actor_dir + "/actor_0910_cosine_reinforce.pth"))
-actor.load_state_dict(torch.load(actor_dir + "/actor_oracle32-10-40000.pth"))
+actor.load_state_dict(torch.load(actor_dir + "/actor_oracle36-0-30000.pth"))
 actor = actor.to(device)
 actor.eval()
 # proprio_encoder = MLPEncoder(input_dim=45*15)
@@ -177,7 +177,7 @@ default_joint_angles = {  # = target angles [rad] when action = 0.0
 }
 default_dof_pos = np.array(list(default_joint_angles.values()))
 data.qpos[0:3] = np.array([0.0, 0.0, 0.37])  # 0.37 是合适的高度，防止机器人一开始就掉下去
-target_pos = np.array(data.qpos[0:3])
+target_pos = np.array([0.0, 0.0, 0])
 target_time = 0.0
 dt = 0.02  # 仿真步长（可根据实际设置）
 
@@ -260,7 +260,7 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         distance = np.linalg.norm(pos_diff[:2])
         print("distance:", distance)
         arget_active = True
-        if distance < 0.1:
+        if distance < 0.1 / 2:
             arget_active = False
             distance = 0.0
         if arget_active:
@@ -319,9 +319,9 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
             ]
         )
 
-        # noise_strength = 0.02  # 噪声的强度，值越大，噪声越强
-        # noise = np.random.randn(*proprio_observation.shape) * noise_strength  # 生成与 proprio_observation 形状相同的噪声
-        # proprio_observation += noise  # 将噪声添加到 proprio_observation# 加入噪声
+        noise_strength = 0.02  # 噪声的强度，值越大，噪声越强
+        noise = np.random.randn(*proprio_observation.shape) * noise_strength  # 生成与 proprio_observation 形状相同的噪声
+        proprio_observation += noise  # 将噪声添加到 proprio_observation# 加入噪声
 
         proprio_observation = torch.from_numpy(proprio_observation).float().to(device).unsqueeze(0) # shape (1,45)
         # proprio_obs_history = torch.cat((proprio_obs_history[:,45:], proprio_observation),dim=-1) # shape (1,675)
