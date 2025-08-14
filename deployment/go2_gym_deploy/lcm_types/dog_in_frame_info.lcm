@@ -1,0 +1,5 @@
+struct dog_in_frame_info 
+{
+    float dog_coord[3];
+    float dog_orientation[3];
+}
