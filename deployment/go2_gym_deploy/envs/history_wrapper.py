@@ -22,8 +22,8 @@ class HistoryWrapper:
         privileged_obs = info["privileged_obs"]
 
         self.obs_history = torch.cat((self.obs_history[:, self.env.num_obs:], obs), dim=-1)
-        print("obs shape:", obs.shape)
-        print("obs_history shape:", self.obs_history.shape)
+        # print("obs shape:", obs.shape)
+        # print("obs_history shape:", self.obs_history.shape)
         return {'obs': obs, 'privileged_obs': privileged_obs, 'obs_history': self.obs_history}, rew, done, info
 
     def get_observations(self):

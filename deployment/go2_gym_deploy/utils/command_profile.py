@@ -149,7 +149,7 @@ def wrap_to_pi(x):
 
 class RCControllerProfile(CommandProfile):
     def __init__(self, dt, state_estimator, x_scale=1.0, y_scale=1.0, yaw_scale=1.0,
-                 max_speed=0.7, max_yaw_rate=0.6, joystick_meter_per_second=0.5):
+                 max_speed=0.5, max_yaw_rate=0.6/2, joystick_meter_per_second=0.5):
         """
         joystick_meter_per_second: 当摇杆满偏 (1.0) 时，target_pos 每秒移动多少米（用于用摇杆移动 target_pos）
         max_speed: 机器人匀速上限（m/s），用于计算 target_time = dist / max_speed
@@ -175,7 +175,7 @@ class RCControllerProfile(CommandProfile):
         self.max_yaw_rate = float(max_yaw_rate)
         self.joystick_meter_per_second = float(joystick_meter_per_second)
         # which button index corresponds to R2? (you must confirm this mapping in cheetah_state_estimator)
-        self.R2_BUTTON_IDX = 2  # <-- **请根据你的 cheetah_state_estimator.py 对应映射修改此值**
+        self.R1_BUTTON_IDX = 3  # <-- **请根据你的 cheetah_state_estimator.py 对应映射修改此值**
 
     def get_command(self, t, probe=False):
         """
@@ -195,8 +195,9 @@ class RCControllerProfile(CommandProfile):
         self.button_states = self.state_estimator.get_buttons()
 
         # ensure target_pos initialized as current base pos
-        base_pos = np.array([0, 0, 0])
-        base_yaw = np.array([0])
+        base_pos = np.array([0.0, 0.0])
+        base_yaw = np.array([0.0])
+        dog_coord = self.state_estimator.get_dog_coord()
         if self.target_pos is None and base_pos is not None:
             self.target_pos = base_pos.copy()
 
@@ -212,14 +213,18 @@ class RCControllerProfile(CommandProfile):
             # note: assume joystick axes are in robot body frame; if they are world-frame you'd need transform
             self.target_pos[0] += dx
             self.target_pos[1] += dy
+            # print(f"{raw_cmd[0]:.2f},{raw_cmd[1]:.2f},{raw_cmd[2]:.2f}")
+            if not self.move_active:
+                print(f"target:{self.target_pos[0]:.2f},{self.target_pos[1]:.2f}")
+                print(f"currpos:{dog_coord[0]:.2f},{dog_coord[1]:.2f}")
 
         # --- handle R2 press to start movement (rising edge triggers) ---
-        r2_pressed = (self.button_states[self.R2_BUTTON_IDX] == 1)
-        r2_prev = (prev_button_states[self.R2_BUTTON_IDX] == 1)
-        if r2_pressed and not r2_prev and not self.move_active:
+        r1_pressed = (self.button_states[self.R1_BUTTON_IDX] == 1)
+        r1_prev = (prev_button_states[self.R1_BUTTON_IDX] == 1)
+        if r1_pressed and not r1_prev and not self.move_active:
             # rising edge -> start moving towards target
             if base_pos is not None and self.target_pos is not None:
-                dist = float(np.linalg.norm(self.target_pos[:2] - base_pos[:2]))
+                dist = float(np.linalg.norm(self.target_pos - dog_coord[0:2]))
                 if dist < 1e-4:
                     self.move_active = False
                     self.remaining_time = 0.0
@@ -227,7 +232,7 @@ class RCControllerProfile(CommandProfile):
                     self.move_active = True
                     self.remaining_time = float(dist / max(self.max_speed, 1e-3))
                     reset_timer = True
-
+        
         # if some triggered_commands exist we preserve that logic (execute triggered commands)
         # (this mirrors previous behavior)
         for button in range(4):
@@ -249,7 +254,7 @@ class RCControllerProfile(CommandProfile):
             # compute remaining_time based velocity (simple proportional)
             # linear velocity toward target in body frame. We need vector from base->target in body frame.
             # Here we assume target_pos is expressed in world frame and base_pos is world frame.
-            vec_world = self.target_pos[:2] - base_pos[:2]  # [dx,dy] in world
+            vec_world = self.target_pos - dog_coord[0:2]  # [dx,dy] in world
             dist = float(np.linalg.norm(vec_world))
             if dist < 0.02:  # threshold reached
                 self.move_active = False
@@ -289,15 +294,17 @@ class RCControllerProfile(CommandProfile):
 
                 # cmd[0] = vx_des
                 # cmd[1] = vy_des
-                cmd[0] = self.target_pos[0] - base_pos[0] # x position command
-                cmd[1] = self.target_pos[1] - base_pos[1]  # y position command
+                cmd[0] = self.target_pos[0] - dog_coord[0] # x position command
+                cmd[1] = self.target_pos[1] - dog_coord[1]  # y position command
                 cmd[2] = yaw_rate_des
-
+                
                 # decrement remaining_time
                 self.remaining_time = max(0.0, self.remaining_time - self.dt)
                 if self.remaining_time <= 0.0:
                     # reached end of planned time -> stop
                     self.move_active = False
+                
+                print(f"{cmd[0]:.2f},{cmd[1]:.2f},{cmd[2]:.2f},time:{self.remaining_time*1e3:.2f}ms")
 
         else:
             # not moving -> zero
