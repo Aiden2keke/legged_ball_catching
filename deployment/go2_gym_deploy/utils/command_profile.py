@@ -287,8 +287,10 @@ class RCControllerProfile(CommandProfile):
                 else:
                     yaw_rate_des = 0.0
 
-                cmd[0] = vx_des
-                cmd[1] = vy_des
+                # cmd[0] = vx_des
+                # cmd[1] = vy_des
+                cmd[0] = self.target_pos[0] - base_pos[0] # x position command
+                cmd[1] = self.target_pos[1] - base_pos[1]  # y position command
                 cmd[2] = yaw_rate_des
 
                 # decrement remaining_time
