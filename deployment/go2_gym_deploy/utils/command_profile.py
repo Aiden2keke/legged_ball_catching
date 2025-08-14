@@ -171,7 +171,7 @@ class RCControllerProfile(CommandProfile):
         self.target_pos = None            # np.array([x,y,z]) or None until initialized
         self.move_active = False
         self.remaining_time = 0.0
-        self.max_speed = float(max_speed)
+        self.max_speed = 0.5
         self.max_yaw_rate = float(max_yaw_rate)
         self.joystick_meter_per_second = float(joystick_meter_per_second)
         # which button index corresponds to R2? (you must confirm this mapping in cheetah_state_estimator)
@@ -306,8 +306,7 @@ class RCControllerProfile(CommandProfile):
             cmd[0] *= self.probe_vel_multiplier
             cmd[2] *= self.probe_vel_multiplier
 
-        # return (command, reset_timer) to match earlier signature
-        return cmd, reset_timer
+        return cmd, reset_timer, self.remaining_time
 
 
     def add_triggered_command(self, button_idx, command_profile):
@@ -319,15 +318,24 @@ class RCControllerProfile(CommandProfile):
 class RCControllerProfileAccel(RCControllerProfile):
     def __init__(self, dt, state_estimator, x_scale=1.0, y_scale=1.0, yaw_scale=1.0):
         super().__init__(dt, state_estimator, x_scale=x_scale, y_scale=y_scale, yaw_scale=yaw_scale)
-        self.x_scale, self.y_scale, self.yaw_scale = self.x_scale / 100., self.y_scale / 100., self.yaw_scale / 100.
-        self.velocity_command = torch.zeros(3)
+        # self.x_scale, self.y_scale, self.yaw_scale = self.x_scale / 100., self.y_scale / 100., self.yaw_scale / 100.
+        # self.velocity_command = torch.zeros(3)
+        
+        # 将速度指令改为位置指令
+        self.position_command = torch.zeros(3)
 
     def get_command(self, t):
 
-        accel_command = self.state_estimator.get_command()
-        self.velocity_command[0] = self.velocity_command[0]  + accel_command[0] * self.x_scale
-        self.velocity_command[1] = self.velocity_command[1]  + accel_command[1] * self.y_scale
-        self.velocity_command[2] = self.velocity_command[2]  + accel_command[2] * self.yaw_scale
+        # accel_command = self.state_estimator.get_command()
+        # self.velocity_command[0] = self.velocity_command[0]  + accel_command[0] * self.x_scale
+        # self.velocity_command[1] = self.velocity_command[1]  + accel_command[1] * self.y_scale
+        # self.velocity_command[2] = self.velocity_command[2]  + accel_command[2] * self.yaw_scale
+
+        # 将速度指令改为位置指令
+        pos_command = self.state_estimator.get_command()
+        self.position_command[0] = pos_command[0] * self.x_scale
+        self.position_command[1] = pos_command[1] * self.y_scale
+        self.position_command[2] = pos_command[2] * self.yaw_scale
 
         # check for action buttons
         prev_button_states = self.button_states[:]
