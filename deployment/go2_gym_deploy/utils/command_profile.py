@@ -195,11 +195,10 @@ class RCControllerProfile(CommandProfile):
         self.button_states = self.state_estimator.get_buttons()
 
         # ensure target_pos initialized as current base pos
-        base_pos = np.array([0.0, 0.0])
         base_yaw = np.array([0.0])
         dog_coord = self.state_estimator.get_dog_coord()
-        if self.target_pos is None and base_pos is not None:
-            self.target_pos = base_pos.copy()
+        if self.target_pos is None:
+            self.target_pos = np.array([0.0, 0.0])
 
         # --- joystick: move target_pos in x,y in robot body frame ---
         # raw_cmd[0], raw_cmd[1] are joystick deflections [-1..1]
@@ -213,17 +212,22 @@ class RCControllerProfile(CommandProfile):
             # note: assume joystick axes are in robot body frame; if they are world-frame you'd need transform
             self.target_pos[0] += dx
             self.target_pos[1] += dy
+            self.state_estimator.publish_dog_target(self.target_pos)
             # print(f"{raw_cmd[0]:.2f},{raw_cmd[1]:.2f},{raw_cmd[2]:.2f}")
             if not self.move_active:
-                print(f"target:{self.target_pos[0]:.2f},{self.target_pos[1]:.2f}")
-                print(f"currpos:{dog_coord[0]:.2f},{dog_coord[1]:.2f}")
-
+                # print(f"target:{self.target_pos[0]:.2f},{self.target_pos[1]:.2f}")
+                # print(f"currpos:{dog_coord[0]:.2f},{dog_coord[1]:.2f}")
+                pass
+        if self.state_estimator.get_T_world_to_dog() is not None:
+            self.T_world_to_dog = self.state_estimator.get_T_world_to_dog()
+        else:
+            self.T_world_to_dog = np.eye(4)  # fallback
         # --- handle R2 press to start movement (rising edge triggers) ---
         r1_pressed = (self.button_states[self.R1_BUTTON_IDX] == 1)
         r1_prev = (prev_button_states[self.R1_BUTTON_IDX] == 1)
         if r1_pressed and not r1_prev and not self.move_active:
             # rising edge -> start moving towards target
-            if base_pos is not None and self.target_pos is not None:
+            if self.target_pos is not None:
                 dist = float(np.linalg.norm(self.target_pos - dog_coord[0:2]))
                 if dist < 1e-4:
                     self.move_active = False
@@ -250,10 +254,7 @@ class RCControllerProfile(CommandProfile):
 
         # --- produce velocity command depending on move_active ---
         cmd = np.zeros(9, dtype=float)  # keep same shape as other profiles (first 3 are vx,vy,yaw)
-        if self.move_active and base_pos is not None:
-            # compute remaining_time based velocity (simple proportional)
-            # linear velocity toward target in body frame. We need vector from base->target in body frame.
-            # Here we assume target_pos is expressed in world frame and base_pos is world frame.
+        if self.move_active:
             vec_world = self.target_pos - dog_coord[0:2]  # [dx,dy] in world
             dist = float(np.linalg.norm(vec_world))
             if dist < 0.02:  # threshold reached
@@ -294,9 +295,14 @@ class RCControllerProfile(CommandProfile):
 
                 # cmd[0] = vx_des
                 # cmd[1] = vy_des
-                cmd[0] = self.target_pos[0] - dog_coord[0] # x position command
-                cmd[1] = self.target_pos[1] - dog_coord[1]  # y position command
-                cmd[2] = yaw_rate_des
+                dx_world = self.target_pos[0] - dog_coord[0] # x position command
+                dy_world = self.target_pos[1] - dog_coord[1]  # y position command
+                tmp_vec_in_frame_dog = self.T_world_to_dog@np.array([dx_world, dy_world,0,0])
+                cmd[0] = tmp_vec_in_frame_dog[0]
+                cmd[1] = tmp_vec_in_frame_dog[1]
+                
+                yaw_diff = np.arctan2(tmp_vec_in_frame_dog[1], tmp_vec_in_frame_dog[0])
+                cmd[2] = np.clip(yaw_diff, -0.3, 0.3)
                 
                 # decrement remaining_time
                 self.remaining_time = max(0.0, self.remaining_time - self.dt)
@@ -304,7 +310,7 @@ class RCControllerProfile(CommandProfile):
                     # reached end of planned time -> stop
                     self.move_active = False
                 
-                print(f"{cmd[0]:.2f},{cmd[1]:.2f},{cmd[2]:.2f},time:{self.remaining_time*1e3:.2f}ms")
+                print(f"{dx_world:.2f}, {dy_world:.2f}, {cmd[0]:.2f},{cmd[1]:.2f},{cmd[2]/np.pi*180:.2f}deg,time:{self.remaining_time*1e3:.2f}ms")
 
         else:
             # not moving -> zero

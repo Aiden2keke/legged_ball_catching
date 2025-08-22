@@ -9,17 +9,25 @@ import struct
 
 class dog_in_frame_info(object):
 
-    __slots__ = ["dog_coord", "dog_orientation"]
+    __slots__ = ["dog_coord", "dog_orientation", "T_world_to_dog", "T_dog_to_world"]
 
-    __typenames__ = ["float", "float"]
+    __typenames__ = ["float", "float", "float", "float"]
 
-    __dimensions__ = [[3], [3]]
+    __dimensions__ = [[3], [3], [16], [16]]
 
     def __init__(self):
         self.dog_coord = [ 0.0 for dim0 in range(3) ]
         """ LCM Type: float[3] """
         self.dog_orientation = [ 0.0 for dim0 in range(3) ]
         """ LCM Type: float[3] """
+        self.T_world_to_dog = [ 0.0 for dim0 in range(16) ]
+        """ LCM Type: float[16] """
+        self.T_dog_to_world = [ 0.0 for dim0 in range(16) ]
+        """
+        4x4 transformation matrix in column-major order
+        LCM Type: float[16]
+        """
+
 
     def encode(self):
         buf = BytesIO()
@@ -30,6 +38,8 @@ class dog_in_frame_info(object):
     def _encode_one(self, buf):
         buf.write(struct.pack('>3f', *self.dog_coord[:3]))
         buf.write(struct.pack('>3f', *self.dog_orientation[:3]))
+        buf.write(struct.pack('>16f', *self.T_world_to_dog[:16]))
+        buf.write(struct.pack('>16f', *self.T_dog_to_world[:16]))
 
     @staticmethod
     def decode(data: bytes):
@@ -46,12 +56,14 @@ class dog_in_frame_info(object):
         self = dog_in_frame_info()
         self.dog_coord = struct.unpack('>3f', buf.read(12))
         self.dog_orientation = struct.unpack('>3f', buf.read(12))
+        self.T_world_to_dog = struct.unpack('>16f', buf.read(64))
+        self.T_dog_to_world = struct.unpack('>16f', buf.read(64))
         return self
 
     @staticmethod
     def _get_hash_recursive(parents):
         if dog_in_frame_info in parents: return 0
-        tmphash = (0x7ce1accbcdf9bb2e) & 0xffffffffffffffff
+        tmphash = (0xa3f85f879d8b0724) & 0xffffffffffffffff
         tmphash  = (((tmphash<<1)&0xffffffffffffffff) + (tmphash>>63)) & 0xffffffffffffffff
         return tmphash
     _packed_fingerprint = None
