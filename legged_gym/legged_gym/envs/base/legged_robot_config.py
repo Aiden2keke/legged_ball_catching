@@ -42,7 +42,8 @@ class LeggedRobotCfg(BaseConfig):
         episode_length_s = 20 # episode length in seconds
 
     class terrain:
-        mesh_type = 'plane' # "heightfield" # none, plane, heightfield or trimesh
+        mesh_type = 'plane'
+        # mesh_type = 'trimesh' # "heightfield" # none, plane, heightfield or trimesh
         horizontal_scale = 0.1 # [m]
         vertical_scale = 0.005 # [m]
         border_size = 25 # [m]
@@ -69,18 +70,18 @@ class LeggedRobotCfg(BaseConfig):
     class commands:
         curriculum = True
         max_curriculum = 1.
-        min_pos_1 = 0
+        min_pos_1 = -5
         max_pos_1 = 7.5
         min_pos_2 = -np.pi
         max_pos_2 = np.pi
         num_commands = 3 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10. # time before command are changed[s]
         heading_command = True # if true: compute ang vel command from heading error
-        max_speed = 0.7  # 机器狗最大速度（m/s）
-        landing_time_min = .50   # 最小落地时间（可选）
+        max_speed = 0.5  # 机器狗最大速度（m/s）
+        landing_time_min = .0   # 最小落地时间（可选）
         landing_time_max = 10.0   # 最大落地时间（可选）
         class ranges:
-            pos_1 = [1.5, 5] # min max [m] 
+            pos_1 = [-0.5, 1] # min max [m] 
             pos_2 = [-1.5, 1.5]  # rad if polar
             heading = [-0.3, 0.3]  # a residual heading plus theta
             use_polar = True
@@ -133,12 +134,16 @@ class LeggedRobotCfg(BaseConfig):
     class domain_rand:
         randomize_friction = True
         friction_range = [0.5, 1.25]
-        randomize_base_mass = False
+        randomize_base_mass = True
         added_mass_range = [-1., 1.]
         push_robots = True
         push_interval_s = 15
         max_push_vel_xy = 1.
         randomize_timer_minus = 2.0  # timer_left is initialized with randomization: U(T-this, T)
+        randomize_base_com = True
+        added_com_range = [-0.01, 0.01]
+        randomize_action_delay = True
+        delay_ms_range = [0, 10] # ms
 
     class rewards:
         class scales:
@@ -188,6 +193,9 @@ class LeggedRobotCfg(BaseConfig):
 
             # ##### ANYmal-Parkour #####
             stop_yaw_vel = -0.1
+
+            ##### Motion Priors Reimagined: Adapting Flat-Terrain Skills for Complex Quadruped Mobility #####
+            # velocity = 1.0
 
         soft_dof_pos_limit = 0.95 #check go2_config.py !!!!
         base_height_target = 0.25 #check go2_config.py !!!!

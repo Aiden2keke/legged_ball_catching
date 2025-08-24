@@ -135,7 +135,7 @@ data = mujoco.MjData(model)
 device = torch.device("cuda")
 actor = Actor(num_obs=49, num_actions=12, hidden_dims=[512, 256, 128])
 # actor.load_state_dict(torch.load(actor_dir + "/actor_0910_cosine_reinforce.pth"))
-actor.load_state_dict(torch.load(actor_dir + "/actor_oracle36-0-30000.pth"))
+actor.load_state_dict(torch.load(actor_dir + "/actor_oracle38-5-15000.pth"))
 actor = actor.to(device)
 actor.eval()
 # proprio_encoder = MLPEncoder(input_dim=45*15)
@@ -241,17 +241,17 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         # 获取当前机器人位置和朝向
         body_pos = np.array(data.qpos[0:3])
         body_quat = np.array(data.qpos[3:7])
-        target_pos = np.array([-3, 3, 0])
+        # target_pos = np.array([-3, 3, 0])/2
         t += dt
 
-    # # 检查按键并设置目标点和时间
-    #     for direction in ["up", "down", "left", "right"]:
-    #         if key_state[direction]:
-    #             target_pos_add, target_time = set_target_by_key(direction)
-    #             print("target_pos_add:", target_pos_add)
-    #             target_pos = target_pos + target_pos_add
-    #             arget_active = True
-    #             break  # 只响应一个方向
+    # 检查按键并设置目标点和时间
+        for direction in ["up", "down", "left", "right"]:
+            if key_state[direction]:
+                target_pos_add, target_time = set_target_by_key(direction)
+                print("target_pos_add:", target_pos_add)
+                target_pos = target_pos + target_pos_add
+                arget_active = True
+                break  # 只响应一个方向
     # 计算 command（期望速度），根据目标点和当前位置
         print("target_pos:", target_pos)
         print("body_pos:", body_pos)

@@ -88,7 +88,12 @@ class LeggedRobot(BaseTask):
         # step physics and render each frame
         self.render()
         for _ in range(self.cfg.control.decimation):
-            self.torques = self._compute_torques(self.actions).view(self.torques.shape)
+            if self.cfg.domain_rand.randomize_action_delay:
+                self.action_fifo = torch.cat((self.actions.unsqueeze(1), self.action_fifo[:, :-1, :]), dim=1)
+                self.torques = self._compute_torques(self.action_fifo[torch.arange(self.num_envs), self.action_delay_idx, :]
+                                                    ).view(self.torques.shape)
+            else:
+                self.torques = self._compute_torques(self.actions).view(self.torques.shape)
             self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
             self.gym.simulate(self.sim)
             if self.device == 'cpu':
@@ -405,6 +410,10 @@ class LeggedRobot(BaseTask):
         if self.cfg.domain_rand.randomize_base_mass:
             rng = self.cfg.domain_rand.added_mass_range
             props[0].mass += np.random.uniform(rng[0], rng[1])
+        if self.cfg.domain_rand.randomize_base_com:
+            rng_com = self.cfg.domain_rand.added_com_range
+            rand_com = np.random.uniform(rng_com[0], rng_com[1], size=(3, ))
+            props[0].com += gymapi.Vec3(*rand_com)
         return props
     
     def _post_physics_step_callback(self):
@@ -672,6 +681,27 @@ class LeggedRobot(BaseTask):
         self.last_foot_velocities = torch.zeros_like(self.foot_velocities)
         #_reward_knee_distance
         # self.rigid_state = gymtorch.wrap_tensor(rigid_body_state).view(self.num_envs, -1, 13)
+        
+        # domain_randomization
+        if self.cfg.domain_rand.randomize_action_delay:
+            action_delay_idx = torch.round(
+                torch_rand_float(
+                    self.cfg.domain_rand.delay_ms_range[0] / 1000 / self.sim_params.dt,
+                    self.cfg.domain_rand.delay_ms_range[1] / 1000 / self.sim_params.dt,
+                    (self.num_envs, 1),
+                    device=self.device,
+                )
+            ).squeeze(-1)
+            self.action_delay_idx = action_delay_idx.long()
+            delay_max = np.int64(
+                np.ceil(self.cfg.domain_rand.delay_ms_range[1] / 1000 / self.sim_params.dt)
+            )
+            self.action_fifo = torch.zeros(
+                (self.num_envs, delay_max, self.cfg.env.num_actions),
+                dtype=torch.float,
+                device=self.device,
+                requires_grad=False,
+            )
 
         # joint positions offsets and PD gains
         self.default_dof_pos = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
@@ -1262,3 +1292,21 @@ class LeggedRobot(BaseTask):
         return torch.square(self.base_ang_vel[:, 2]) \
             * (torch.norm(self.commands[:, :2], dim=1) < 0.1) \
             * (torch.abs(self.commands[:, 2] < 0.2))
+
+    ##### Motion Priors Reimagined: Adapting Flat-Terrain Skills for Complex Quadruped Mobility #####
+    def _reward_velocity(self):
+        # 计算距离向量 d (目标位置 - 当前位置)
+        d = self.position_targets[:, :2] - self.root_states[:, :2]
+        # 计算距离的L2范数
+        distance = torch.norm(d, dim=1)
+        # 获取实际速度向量 v (base linear velocity)
+        v = self.base_lin_vel[:, :2]
+        # 计算向量点积 <v, d>
+        dot_product = torch.sum(v * d, dim=1)
+        # 取最小值 min(v_cmd_norm, dot_product)
+        max_speed = self.cfg.commands.max_speed
+        max_speed_tensor = torch.full_like(dot_product, max_speed)
+        min_val = torch.min(max_speed_tensor, dot_product)
+        # 根据距离条件计算奖励
+        reward = torch.where(distance > 0.15, min_val, torch.zeros_like(min_val))
+        return reward

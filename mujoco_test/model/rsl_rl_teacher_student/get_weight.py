@@ -2,8 +2,8 @@ import os
 import torch
 
 # 可配置的变量
-run_name     = "36-0"
-model_iters  = [10000, 15000, 20000, 25000, 30000]  # 多个 checkpoint 步数
+run_name     = "38-6"
+model_iters  = [5000, 7500, 10000, 15000, 20000, 25000, 30000]  # 多个 checkpoint 步数
 base_log_dir = "/home/yd/program/legged_ball_catching-1/legged_gym/logs/rough_go2"
 
 for model_iter in model_iters:
