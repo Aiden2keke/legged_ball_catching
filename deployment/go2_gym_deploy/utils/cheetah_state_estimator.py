@@ -9,6 +9,7 @@ from go2_gym_deploy.lcm_types.leg_control_data_lcmt import leg_control_data_lcmt
 from go2_gym_deploy.lcm_types.rc_command_lcmt import rc_command_lcmt
 from go2_gym_deploy.lcm_types.state_estimator_lcmt import state_estimator_lcmt
 from go2_gym_deploy.lcm_types.dog_in_frame_info import dog_in_frame_info
+from go2_gym_deploy.lcm_types.dog_feedback_info import dog_feedback_info
 # 不调用相机 !!!
 # from go1_gym_deploy.lcm_types.camera_message_lcmt import camera_message_lcmt
 # from go1_gym_deploy.lcm_types.camera_message_rect_wide import camera_message_rect_wide
@@ -390,6 +391,8 @@ class StateEstimator:
         msg = dog_in_frame_info.decode(data)
 
         self.dog_coord = np.array(msg.dog_coord)
+        self.T_world_to_dog = np.array(msg.T_world_to_dog).reshape((4, 4))
+        self.T_dog_to_world = np.array(msg.T_dog_to_world).reshape((4, 4))
         # TODO orientation is not used yet
         self.dog_orientation = np.array(msg.dog_orientation)
 
@@ -398,6 +401,18 @@ class StateEstimator:
         if not hasattr(self, 'dog_coord'):
             self.dog_coord = np.zeros(3)
         return np.array(self.dog_coord)
+    def publish_dog_target(self, target):
+        msg = dog_feedback_info()
+        msg.dog_target_coord = target
+        self.lc.publish("dog_feedback_info", msg.encode())
+    def get_T_world_to_dog(self):
+        if not hasattr(self, 'T_world_to_dog'):
+            self.T_world_to_dog = None
+        return self.T_world_to_dog
+    def get_T_dog_to_world(self):
+        if not hasattr(self, 'T_dog_to_world'):
+            self.T_dog_to_world = None
+        return self.T_dog_to_world
         
     def poll(self, cb=None):
         t = time.time()
