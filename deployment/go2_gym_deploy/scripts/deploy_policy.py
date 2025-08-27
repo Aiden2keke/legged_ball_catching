@@ -119,7 +119,7 @@ def load_policy(logdir):
     
     else:
         actor = Actor(num_obs=49, num_actions=12)
-        actor.load_state_dict(torch.load(logdir + '/checkpoints/experiment/actor/actor_oracle35-1-10000.pth'))
+        actor.load_state_dict(torch.load('//home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/actor/actor_oracle38-5-15000.pth'))
         actor = actor.to('cpu')
         actor.eval()
         
