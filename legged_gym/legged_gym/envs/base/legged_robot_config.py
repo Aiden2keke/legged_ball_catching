@@ -142,14 +142,16 @@ class LeggedRobotCfg(BaseConfig):
         randomize_timer_minus = 2.0  # timer_left is initialized with randomization: U(T-this, T)
         randomize_base_com = True
         added_com_range = [-0.01, 0.01]
-        randomize_action_delay = True
+        randomize_action_delay = False
         delay_ms_range = [0, 10] # ms
 
     class rewards:
         class scales:
             termination = -0. ## = task
-            tracking_lin_vel = 1.0
-            tracking_ang_vel = 0.5
+            tracking_lin_vel = 1.0 # We should not use it in position control
+            tracking_ang_vel = 0.5 # We should not use it in position control
+            tracking_position = 1.0 # So we use this one
+            tracking_yaw = 0.5
             torques = -0.0005 #check go2_config.py !!!!
             dof_pos_limits = -20.0 #check go2_config.py !!!!
             dof_vel = -0.0005 * 3

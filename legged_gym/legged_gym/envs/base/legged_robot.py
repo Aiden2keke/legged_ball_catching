@@ -575,9 +575,10 @@ class LeggedRobot(BaseTask):
             env_ids (List[int]): ids of environments being reset
         """
         # If the tracking reward is above 80% of the maximum, increase the range of commands
-        if torch.mean(self.episode_sums["tracking_lin_vel"][env_ids]) / self.max_episode_length > 0.9 * self.reward_scales["tracking_lin_vel"]:
+        if torch.mean(self.episode_sums["tracking_position"][env_ids]) / self.max_episode_length > 0.75 * self.reward_scales["tracking_position"]:
             self.command_ranges["pos_1"][0] = np.clip(self.command_ranges["pos_1"][0] - 0.1, self.cfg.commands.min_pos_1, 0.)
             self.command_ranges["pos_1"][1] = np.clip(self.command_ranges["pos_1"][1] + 0.1, 0., self.cfg.commands.max_pos_1)
+        if torch.mean(self.episode_sums["tracking_yaw"][env_ids]) / self.max_episode_length > 0.8 * self.reward_scales["tracking_yaw"]:
             self.command_ranges["pos_2"][0] = np.clip(self.command_ranges["pos_2"][0] - 0.1, self.cfg.commands.min_pos_2, 0.)
             self.command_ranges["pos_2"][1] = np.clip(self.command_ranges["pos_2"][1] + 0.1, 0., self.cfg.commands.max_pos_2)
 
@@ -1103,12 +1104,24 @@ class LeggedRobot(BaseTask):
     def _reward_tracking_lin_vel(self):
         # Tracking of linear velocity commands (xy axes)
         lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
+        # commands are position, it is like (x-vx, y-vy)， which is wrong
         return torch.exp(-lin_vel_error/self.cfg.rewards.tracking_sigma)
     
     def _reward_tracking_ang_vel(self):
         # Tracking of angular velocity commands (yaw) 
         ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])
+        #same as above, we need tracking_position
         return torch.exp(-ang_vel_error/self.cfg.rewards.tracking_sigma)
+    
+    def _reward_tracking_position(self):
+        # Tracking of position commands (xy axes)
+        pos_error = torch.sum(torch.square(self.commands[:, :2]), dim=1)
+        return torch.exp(-pos_error/self.cfg.rewards.tracking_sigma)
+    
+    def _reward_tracking_yaw(self):
+        # Tracking of yaw commands (z axes)
+        yaw_error = torch.square(self.commands[:, 2])
+        return torch.exp(-yaw_error/self.cfg.rewards.tracking_sigma)
 
     def _reward_feet_air_time(self):
         # Reward long steps

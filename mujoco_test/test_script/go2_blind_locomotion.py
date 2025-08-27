@@ -135,7 +135,7 @@ data = mujoco.MjData(model)
 device = torch.device("cuda")
 actor = Actor(num_obs=49, num_actions=12, hidden_dims=[512, 256, 128])
 # actor.load_state_dict(torch.load(actor_dir + "/actor_0910_cosine_reinforce.pth"))
-actor.load_state_dict(torch.load(actor_dir + "/actor_oracle38-5-15000.pth"))
+actor.load_state_dict(torch.load(actor_dir + "/actor_oracle39-2-7500.pth"))
 actor = actor.to(device)
 actor.eval()
 # proprio_encoder = MLPEncoder(input_dim=45*15)
@@ -228,6 +228,7 @@ d = data
 velocity_scale_factor = 2.0  # 调整此值以使箭头长度在视觉上更明显
 min_arrow_length = 0.05      # 即使速度为零，也确保箭头有一个最小可见长度
 max_arrow_length = 1.0       # 限制箭头的最大长度，防止在高速时过长导致画面混乱
+dist_history = torch.zeros(50).to(device)
 
 with mujoco.viewer.launch_passive(model, data) as viewer:
     viewer.cam.lookat = [-7., 4.5, 3.]  # Example: move camera to (0, 0, 0.5)
@@ -259,8 +260,9 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         print("pos_diff:", pos_diff)
         distance = np.linalg.norm(pos_diff[:2])
         print("distance:", distance)
+        dist_history = torch.cat((dist_history[1:], torch.tensor([distance], device=dist_history.device)), dim=-1)
         arget_active = True
-        if distance < 0.1 / 2:
+        if (dist_history < 0.1 / 2).all():
             arget_active = False
             distance = 0.0
         if arget_active:
