@@ -74,6 +74,10 @@ class LeggedRobotCfg(BaseConfig):
         max_pos_1 = 7.5
         min_pos_2 = -np.pi
         max_pos_2 = np.pi
+        # min_pos_1 = -5
+        # max_pos_1 = 5
+        # min_pos_2 = -5
+        # max_pos_2 = 5
         num_commands = 3 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10. # time before command are changed[s]
         heading_command = True # if true: compute ang vel command from heading error
@@ -85,6 +89,11 @@ class LeggedRobotCfg(BaseConfig):
             pos_2 = [-1.5, 1.5]  # rad if polar
             heading = [-0.3, 0.3]  # a residual heading plus theta
             use_polar = True
+
+            # pos_1 = [-1, 1] # min max [m] 
+            # pos_2 = [-1, 1]  # rad if polar
+            # heading = [-0.3, 0.3]  # a residual heading plus theta
+            # use_polar = False
 
 
     class init_state:
@@ -162,7 +171,7 @@ class LeggedRobotCfg(BaseConfig):
             stand_still_pos = -10.0
             orientation = -40.0
             base_height = -10.
-            feet_air_time = 1.0
+            feet_air_time = 1.0 * 3
             feet_stumble = -0.0
             collision = -1.
             action_smoothness = -0.001 * 2
@@ -185,7 +194,7 @@ class LeggedRobotCfg(BaseConfig):
 
             ##### Advanced Skills by Learning Locomotion and Local Navigation End-to-End #####
             task = 100 # = termination
-            feet_acceleration = -0.0001
+            # feet_acceleration = -1e-9
             exploration = 1
             stalling_penalty = 1
 
@@ -199,6 +208,11 @@ class LeggedRobotCfg(BaseConfig):
             ##### Motion Priors Reimagined: Adapting Flat-Terrain Skills for Complex Quadruped Mobility #####
             # velocity = 1.0
 
+            ##### wf_skill_planning #####
+            feet_height = -1.0 * 1
+
+            # base_acc = 1.0
+
         soft_dof_pos_limit = 0.95 #check go2_config.py !!!!
         base_height_target = 0.25 #check go2_config.py !!!!
         only_positive_rewards = False
@@ -211,10 +225,15 @@ class LeggedRobotCfg(BaseConfig):
         soft_torque_limit = 0.85
         max_contact_force = 100.
         tracking_sigma = 0.1 # tracking reward = exp(-error^2/sigma)
+        tracking_yaw_sigma = 1.0
+        tracking_pos_sigma = 0.5
         min_feet_distance = 0.2
         # min_dist = 0.2
         # max_dist = 0.5
         velocity_target_sigma_tight = 0.4
+        target_feet_height = 0.1
+        cycle_time = 0.64 #what is this?
+        feet_height_sigma = 0.01
 
     class normalization:
         class obs_scales:

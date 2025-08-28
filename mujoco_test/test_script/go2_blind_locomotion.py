@@ -135,7 +135,7 @@ data = mujoco.MjData(model)
 device = torch.device("cuda")
 actor = Actor(num_obs=49, num_actions=12, hidden_dims=[512, 256, 128])
 # actor.load_state_dict(torch.load(actor_dir + "/actor_0910_cosine_reinforce.pth"))
-actor.load_state_dict(torch.load(actor_dir + "/actor_oracle39-2-7500.pth"))
+actor.load_state_dict(torch.load(actor_dir + "/actor_oracle41-4-7500.pth"))
 actor = actor.to(device)
 actor.eval()
 # proprio_encoder = MLPEncoder(input_dim=45*15)
@@ -272,6 +272,7 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         # 当前朝向
             fw = quat_rotate_inverse(body_quat, np.array([1, 0, 0]))
             current_heading = np.arctan2(fw[1], fw[0])
+            # command[2] = heading - current_heading
             command[2] = np.clip(heading - current_heading, -0.3, 0.3)
             if t == dt:
                 target_time = distance / max_speed if distance > 0 else 0.0
@@ -313,7 +314,8 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
                 body_lin_vel * body_lin_vel_scale,
                 body_ang_vel * body_ang_vel_scale,
                 gravity_projection,
-                command_input * command_scale,
+                command_input,
+                # command_input * command_scale,
                 [target_time / episode_length_s],
                 (joint_pos - default_dof_pos) * joint_pos_scale,
                 joint_vel * joint_vel_scale,
@@ -321,9 +323,9 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
             ]
         )
 
-        noise_strength = 0.02  # 噪声的强度，值越大，噪声越强
-        noise = np.random.randn(*proprio_observation.shape) * noise_strength  # 生成与 proprio_observation 形状相同的噪声
-        proprio_observation += noise  # 将噪声添加到 proprio_observation# 加入噪声
+        # noise_strength = 0.02  # 噪声的强度，值越大，噪声越强
+        # noise = np.random.randn(*proprio_observation.shape) * noise_strength  # 生成与 proprio_observation 形状相同的噪声
+        # proprio_observation += noise  # 将噪声添加到 proprio_observation# 加入噪声
 
         proprio_observation = torch.from_numpy(proprio_observation).float().to(device).unsqueeze(0) # shape (1,45)
         # proprio_obs_history = torch.cat((proprio_obs_history[:,45:], proprio_observation),dim=-1) # shape (1,675)
