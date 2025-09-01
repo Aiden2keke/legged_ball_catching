@@ -151,7 +151,7 @@ class LeggedRobotCfg(BaseConfig):
         randomize_timer_minus = 2.0  # timer_left is initialized with randomization: U(T-this, T)
         randomize_base_com = True
         added_com_range = [-0.01, 0.01]
-        randomize_action_delay = False
+        randomize_action_delay = True
         delay_ms_range = [0, 10] # ms
 
     class rewards:
@@ -194,7 +194,7 @@ class LeggedRobotCfg(BaseConfig):
 
             ##### Advanced Skills by Learning Locomotion and Local Navigation End-to-End #####
             task = 100 # = termination
-            # feet_acceleration = -1e-9
+            feet_acceleration = -1e-9
             exploration = 1
             stalling_penalty = 1
 
@@ -209,7 +209,7 @@ class LeggedRobotCfg(BaseConfig):
             # velocity = 1.0
 
             ##### wf_skill_planning #####
-            feet_height = -1.0 * 1
+            feet_height = -1.0 * 2.5
 
             # base_acc = 1.0
 

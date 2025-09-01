@@ -134,8 +134,8 @@ data = mujoco.MjData(model)
 ############################
 device = torch.device("cuda")
 actor = Actor(num_obs=49, num_actions=12, hidden_dims=[512, 256, 128])
-# actor.load_state_dict(torch.load(actor_dir + "/actor_0910_cosine_reinforce.pth"))
-actor.load_state_dict(torch.load(actor_dir + "/actor_oracle41-4-7500.pth"))
+# actor.load_state_dict(torch.load(actor_dir + "/actor_oracle41-1-10000.pth"))
+actor.load_state_dict(torch.load(actor_dir + "/actor_oracle41-5-5000.pth"))
 actor = actor.to(device)
 actor.eval()
 # proprio_encoder = MLPEncoder(input_dim=45*15)
@@ -323,9 +323,9 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
             ]
         )
 
-        # noise_strength = 0.02  # 噪声的强度，值越大，噪声越强
-        # noise = np.random.randn(*proprio_observation.shape) * noise_strength  # 生成与 proprio_observation 形状相同的噪声
-        # proprio_observation += noise  # 将噪声添加到 proprio_observation# 加入噪声
+        noise_strength = 0.02  # 噪声的强度，值越大，噪声越强
+        noise = np.random.randn(*proprio_observation.shape) * noise_strength  # 生成与 proprio_observation 形状相同的噪声
+        proprio_observation += noise  # 将噪声添加到 proprio_observation# 加入噪声
 
         proprio_observation = torch.from_numpy(proprio_observation).float().to(device).unsqueeze(0) # shape (1,45)
         # proprio_obs_history = torch.cat((proprio_obs_history[:,45:], proprio_observation),dim=-1) # shape (1,675)
