@@ -37,10 +37,11 @@ class GO2RoughCfg( LeggedRobotCfg ):
         penalize_contacts_on = ["thigh", "calf"]
         terminate_after_contacts_on = ["base"]
         self_collisions = 1 # 1 to disable, 0 to enable...bitwise filter
+        foot_body_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
   
     class rewards( LeggedRobotCfg.rewards ):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.25
+        base_height_target = 0.265
         class scales( LeggedRobotCfg.rewards.scales ):
             torques = -0.0002
             dof_pos_limits = -10.0
@@ -50,6 +51,7 @@ class GO2RoughCfgPPO( LeggedRobotCfgPPO ):
         entropy_coef = 0.01
     class runner( LeggedRobotCfgPPO.runner ):
         run_name = ''
+        max_iterations = 15000
         experiment_name = 'rough_go2'
 
   

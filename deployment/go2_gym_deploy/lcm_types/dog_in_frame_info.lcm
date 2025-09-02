@@ -1,0 +1,7 @@
+struct dog_in_frame_info 
+{
+    float dog_coord[3];
+    float dog_orientation[3];
+    float T_world_to_dog[16]; // 4x4 transformation matrix in column-major order
+    float T_dog_to_world[16]; // 4x4 transformation matrix in column-major order
+}

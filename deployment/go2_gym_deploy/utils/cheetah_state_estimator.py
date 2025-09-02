@@ -8,6 +8,8 @@ import numpy as np
 from go2_gym_deploy.lcm_types.leg_control_data_lcmt import leg_control_data_lcmt
 from go2_gym_deploy.lcm_types.rc_command_lcmt import rc_command_lcmt
 from go2_gym_deploy.lcm_types.state_estimator_lcmt import state_estimator_lcmt
+from go2_gym_deploy.lcm_types.dog_in_frame_info import dog_in_frame_info
+from go2_gym_deploy.lcm_types.dog_feedback_info import dog_feedback_info
 # 不调用相机 !!!
 # from go1_gym_deploy.lcm_types.camera_message_lcmt import camera_message_lcmt
 # from go1_gym_deploy.lcm_types.camera_message_rect_wide import camera_message_rect_wide
@@ -113,6 +115,7 @@ class StateEstimator:
         self.imu_subscription = self.lc.subscribe("state_estimator_data", self._imu_cb)
         self.legdata_state_subscription = self.lc.subscribe("leg_control_data", self._legdata_cb)
         self.rc_command_subscription = self.lc.subscribe("rc_command", self._rc_command_cb)
+        self.dog_frame_subscription = self.lc.subscribe("dog_in_frame_info", self._dog_frame_cb)
 # --------------------------------------------------------------
         # if use_cameras:
         #     for cam_id in [1, 2, 3, 4, 5]:
@@ -166,10 +169,9 @@ class StateEstimator:
 
         # always in use
         cmd_x = 1 * self.left_stick[1]
+        cmd_y = 1 * self.left_stick[0]
         cmd_yaw = -1 * self.right_stick[0]
 
-        # default values
-        cmd_y = 0.  # -1 * self.left_stick[0]
         cmd_height = 0.
         cmd_footswing = 0.08
         cmd_stance_width = 0.33
@@ -178,21 +180,22 @@ class StateEstimator:
         cmd_ori_roll = 0.
         cmd_freq = 3.0
 
-        # joystick commands
-        if MODE_LEFT == "body_height":
-            cmd_height = 0.3 * self.left_stick[0]
-        elif MODE_LEFT == "lat_vel":
-            cmd_y = 0.6 * self.left_stick[0]
-        elif MODE_LEFT == "stance_width":
-            cmd_stance_width = 0.275 + 0.175 * self.left_stick[0]
-        if MODE_RIGHT == "step_frequency":
-            min_freq = 2.0
-            max_freq = 4.0
-            cmd_freq = (1 + self.right_stick[1]) / 2 * (max_freq - min_freq) + min_freq
-        elif MODE_RIGHT == "footswing_height":
-            cmd_footswing = max(0, self.right_stick[1]) * 0.32 + 0.03
-        elif MODE_RIGHT == "body_pitch":
-            cmd_ori_pitch = -0.4 * self.right_stick[1]
+        # # joystick commands
+        # if MODE_LEFT == "body_height":
+        #     cmd_height = 0.3 * self.left_stick[0]
+        # elif MODE_LEFT == "lat_vel":
+        #     # cmd_y = 0.6 * self.left_stick[0]
+        #     pass
+        # elif MODE_LEFT == "stance_width":
+        #     cmd_stance_width = 0.275 + 0.175 * self.left_stick[0]
+        # if MODE_RIGHT == "step_frequency":
+        #     min_freq = 2.0
+        #     max_freq = 4.0
+        #     cmd_freq = (1 + self.right_stick[1]) / 2 * (max_freq - min_freq) + min_freq
+        # elif MODE_RIGHT == "footswing_height":
+        #     cmd_footswing = max(0, self.right_stick[1]) * 0.32 + 0.03
+        # elif MODE_RIGHT == "body_pitch":
+        #     cmd_ori_pitch = -0.4 * self.right_stick[1]
 
         # gait buttons
         if self.mode == 0: # Press Button 'A' -> 'Bound'
@@ -384,8 +387,33 @@ class StateEstimator:
     #     else:
     #         print("Image received from camera with unknown ID#!")
 # --------------------------------------------------
-            
+    def _dog_frame_cb(self, channel, data):
+        msg = dog_in_frame_info.decode(data)
 
+        self.dog_coord = np.array(msg.dog_coord)
+        self.T_world_to_dog = np.array(msg.T_world_to_dog).reshape((4, 4))
+        self.T_dog_to_world = np.array(msg.T_dog_to_world).reshape((4, 4))
+        # TODO orientation is not used yet
+        self.dog_orientation = np.array(msg.dog_orientation)
+
+        # print(f"dog frame: {self.body_loc}, {self.body_quat}")
+    def get_dog_coord(self):
+        if not hasattr(self, 'dog_coord'):
+            self.dog_coord = np.zeros(3)
+        return np.array(self.dog_coord)
+    def publish_dog_target(self, target):
+        msg = dog_feedback_info()
+        msg.dog_target_coord = target
+        self.lc.publish("dog_feedback_info", msg.encode())
+    def get_T_world_to_dog(self):
+        if not hasattr(self, 'T_world_to_dog'):
+            self.T_world_to_dog = None
+        return self.T_world_to_dog
+    def get_T_dog_to_world(self):
+        if not hasattr(self, 'T_dog_to_world'):
+            self.T_dog_to_world = None
+        return self.T_dog_to_world
+        
     def poll(self, cb=None):
         t = time.time()
         try:

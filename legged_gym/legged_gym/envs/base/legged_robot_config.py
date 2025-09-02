@@ -29,11 +29,12 @@
 # Copyright (c) 2021 ETH Zurich, Nikita Rudin
 
 from .base_config import BaseConfig
+import numpy as np
 
 class LeggedRobotCfg(BaseConfig):
     class env:
         num_envs = 4096
-        num_observations = 235
+        num_observations = 49
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 12
         env_spacing = 3.  # not used with heightfields/trimeshes 
@@ -41,7 +42,8 @@ class LeggedRobotCfg(BaseConfig):
         episode_length_s = 20 # episode length in seconds
 
     class terrain:
-        mesh_type = 'trimesh' # "heightfield" # none, plane, heightfield or trimesh
+        mesh_type = 'plane'
+        # mesh_type = 'trimesh' # "heightfield" # none, plane, heightfield or trimesh
         horizontal_scale = 0.1 # [m]
         vertical_scale = 0.005 # [m]
         border_size = 25 # [m]
@@ -50,7 +52,7 @@ class LeggedRobotCfg(BaseConfig):
         dynamic_friction = 1.0
         restitution = 0.
         # rough terrain only:
-        measure_heights = True
+        measure_heights = False
         measured_points_x = [-0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] # 1mx1.6m rectangle (without center line)
         measured_points_y = [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5]
         selected = False # select a unique terrain type and pass all arguments
@@ -66,16 +68,33 @@ class LeggedRobotCfg(BaseConfig):
         slope_treshold = 0.75 # slopes above this threshold will be corrected to vertical surfaces
 
     class commands:
-        curriculum = False
+        curriculum = True
         max_curriculum = 1.
-        num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
+        min_pos_1 = -5
+        max_pos_1 = 7.5
+        min_pos_2 = -np.pi
+        max_pos_2 = np.pi
+        # min_pos_1 = -5
+        # max_pos_1 = 5
+        # min_pos_2 = -5
+        # max_pos_2 = 5
+        num_commands = 3 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10. # time before command are changed[s]
         heading_command = True # if true: compute ang vel command from heading error
+        max_speed = 0.5  # 机器狗最大速度（m/s）
+        landing_time_min = .0   # 最小落地时间（可选）
+        landing_time_max = 10.0   # 最大落地时间（可选）
         class ranges:
-            lin_vel_x = [-1.0, 1.0] # min max [m/s]
-            lin_vel_y = [-1.0, 1.0]   # min max [m/s]
-            ang_vel_yaw = [-1, 1]    # min max [rad/s]
-            heading = [-3.14, 3.14]
+            pos_1 = [-0.5, 1] # min max [m] 
+            pos_2 = [-1.5, 1.5]  # rad if polar
+            heading = [-0.3, 0.3]  # a residual heading plus theta
+            use_polar = True
+
+            # pos_1 = [-1, 1] # min max [m] 
+            # pos_2 = [-1, 1]  # rad if polar
+            # heading = [-0.3, 0.3]  # a residual heading plus theta
+            # use_polar = False
+
 
     class init_state:
         pos = [0.0, 0.0, 1.] # x,y,z [m]
@@ -110,6 +129,9 @@ class LeggedRobotCfg(BaseConfig):
         replace_cylinder_with_capsule = True # replace collision cylinders with capsules, leads to faster/more stable simulation
         flip_visual_attachments = True # Some .obj meshes must be flipped from y-up to z-up
         
+        load_dynamic_object = False
+        object_num = 0
+
         density = 0.001
         angular_damping = 0.
         linear_damping = 0.
@@ -121,37 +143,97 @@ class LeggedRobotCfg(BaseConfig):
     class domain_rand:
         randomize_friction = True
         friction_range = [0.5, 1.25]
-        randomize_base_mass = False
+        randomize_base_mass = True
         added_mass_range = [-1., 1.]
         push_robots = True
         push_interval_s = 15
         max_push_vel_xy = 1.
+        randomize_timer_minus = 2.0  # timer_left is initialized with randomization: U(T-this, T)
+        randomize_base_com = True
+        added_com_range = [-0.01, 0.01]
+        randomize_action_delay = True
+        delay_ms_range = [0, 10] # ms
 
     class rewards:
         class scales:
-            termination = -0.0
-            tracking_lin_vel = 1.0
-            tracking_ang_vel = 0.5
+            termination = -0. ## = task
+            tracking_lin_vel = 1.0 # We should not use it in position control
+            tracking_ang_vel = 0.5 # We should not use it in position control
+            tracking_position = 1.0 # So we use this one
+            tracking_yaw = 0.5
+            torques = -0.0005 #check go2_config.py !!!!
+            dof_pos_limits = -20.0 #check go2_config.py !!!!
+            dof_vel = -0.0005 * 3
             lin_vel_z = -2.0
             ang_vel_xy = -0.05
-            orientation = -0.
-            torques = -0.00001
-            dof_vel = -0.
-            dof_acc = -2.5e-7
-            base_height = -0. 
-            feet_air_time =  1.0
-            collision = -1.
-            feet_stumble = -0.0 
+            dof_acc = -2.0e-7 * 2
             action_rate = -0.01
-            stand_still = -0.
+            stand_still_pos = -10.0
+            orientation = -40.0
+            base_height = -10.
+            feet_air_time = 1.0 * 3
+            feet_stumble = -0.0
+            collision = -1.
+            action_smoothness = -0.001 * 2
+            power = -2e-4
 
-        only_positive_rewards = True # if true negative total rewards are clipped at zero (avoids early termination problems)
-        tracking_sigma = 0.25 # tracking reward = exp(-error^2/sigma)
-        soft_dof_pos_limit = 1. # percentage of urdf limits, values above this limit are penalized
-        soft_dof_vel_limit = 1.
-        soft_torque_limit = 1.
-        base_height_target = 1.
-        max_contact_force = 100. # forces above this value are penalized
+            ##### ABS #####
+            reach_pos_target_soft = 60.0
+            reach_pos_target_tight = 30.0
+            reach_heading_target = 30.0
+            # reach_pos_target_times_heading = 2.0
+            # velo_dir = 10.0
+            torque_limits = -20.0
+            dof_vel_limits = -20.0
+            # nomove = -20.0
+
+            # ##### another #####
+            # feet_distance = 0
+            # knee_distance = 0.2
+            # velo_lim = -0
+
+            ##### Advanced Skills by Learning Locomotion and Local Navigation End-to-End #####
+            task = 100 # = termination
+            feet_acceleration = -1e-9
+            exploration = 1
+            stalling_penalty = 1
+
+            ##### Extreme Parkour with Legged Robots #####
+            # hip_pos = -0.5
+            # dof_error = -0.04
+
+            # ##### ANYmal-Parkour #####
+            stop_yaw_vel = -0.1
+
+            ##### Motion Priors Reimagined: Adapting Flat-Terrain Skills for Complex Quadruped Mobility #####
+            # velocity = 1.0
+
+            ##### wf_skill_planning #####
+            feet_height = -1.0 * 2.5
+
+            # base_acc = 1.0
+
+        soft_dof_pos_limit = 0.95 #check go2_config.py !!!!
+        base_height_target = 0.25 #check go2_config.py !!!!
+        only_positive_rewards = False
+        position_target_sigma = 0.5
+        position_target_sigma_soft = 2.0
+        position_target_sigma_tight = 0.5
+        heading_target_sigma = 1.0
+        rew_duration = 2.0
+        soft_dof_vel_limit = 0.9
+        soft_torque_limit = 0.85
+        max_contact_force = 100.
+        tracking_sigma = 0.1 # tracking reward = exp(-error^2/sigma)
+        tracking_yaw_sigma = 1.0
+        tracking_pos_sigma = 0.5
+        min_feet_distance = 0.2
+        # min_dist = 0.2
+        # max_dist = 0.5
+        velocity_target_sigma_tight = 0.4
+        target_feet_height = 0.1
+        cycle_time = 0.64 #what is this?
+        feet_height_sigma = 0.01
 
     class normalization:
         class obs_scales:

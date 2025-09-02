@@ -1,0 +1,8 @@
+// RC command information is from dog
+// need to send back to remote PC(with realsense)
+
+// Only intended for debugging purpose
+struct dog_feedback_info 
+{
+    float dog_target_coord[2];
+}

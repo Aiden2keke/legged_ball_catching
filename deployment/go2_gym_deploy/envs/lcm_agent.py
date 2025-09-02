@@ -45,7 +45,9 @@ class LCMAgent():
         self.num_privileged_obs = self.cfg["env"]["num_privileged_obs"]
         # self.num_actions = self.cfg["env"]["num_actions"]
         self.num_actions = 12
-        self.num_commands = self.cfg["commands"]["num_commands"]
+        # 9 commands in dimension
+        # self.num_commands = self.cfg["commands"]["num_commands"]
+        self.num_commands = 9
         
         self.device = 'cpu'
 
@@ -114,6 +116,9 @@ class LCMAgent():
         self.joint_vel_target = np.zeros(12)
         self.torques = np.zeros(12)
         self.contact_state = np.ones(4)
+        self.remaining_time = 0.0
+        # self.episode_length_s = self.cfg["env"]["episode_length_s"]
+        self.episode_length_s = 20
 
         self.joint_idxs = self.se.joint_idxs
 
@@ -133,32 +138,25 @@ class LCMAgent():
     def get_obs(self):
 
         self.gravity_vector = self.se.get_gravity_vector()
-        cmds, reset_timer = self.command_profile.get_command(self.timestep * self.dt, probe=self.is_currently_probing)
+        cmds, reset_timer, self.remaining_time = self.command_profile.get_command(self.timestep * self.dt, probe=self.is_currently_probing)
         self.commands[:, :] = cmds[:self.num_commands]
         if reset_timer:
             self.reset_gait_indices()
-        #else:
-        #    self.commands[:, 0:3] = self.command_profile.get_command(self.timestep * self.dt)[0:3]
+            
         self.dof_pos = self.se.get_dof_pos()
         self.dof_vel = self.se.get_dof_vel()
         self.body_linear_vel = self.se.get_body_linear_vel()
         self.body_angular_vel = self.se.get_body_angular_vel()
 
-        # ob = np.concatenate((self.gravity_vector.reshape(1, -1),
-        #                      self.commands * self.commands_scale,
-        #                      (self.dof_pos - self.default_dof_pos).reshape(1, -1) * self.obs_scales["dof_pos"],
-        #                      self.dof_vel.reshape(1, -1) * self.obs_scales["dof_vel"],
-        #                      torch.clip(self.actions, -self.cfg["normalization"]["clip_actions"],
-        #                                 self.cfg["normalization"]["clip_actions"]).cpu().detach().numpy().reshape(1, -1)
-        #                      ), axis=1)
-        self.commands_scale = np.array([2.0, 2.0, 0.25])
-        ob = np.concatenate((
+        self.commands_scale = np.array([1.0, 1.0, 0.25])
+        ob = np.concatenate((self.body_linear_vel.reshape(1, -1) * self.obs_scales["lin_vel"],
                             self.body_angular_vel.reshape(1, -1) * self.obs_scales["ang_vel"],
                             self.gravity_vector.reshape(1, -1),
-                             self.commands[:,0:3] * self.commands_scale,
-                             (self.dof_pos - self.default_dof_pos).reshape(1, -1) * self.obs_scales["dof_pos"],
-                             self.dof_vel.reshape(1, -1) * self.obs_scales["dof_vel"],
-                             torch.clip(self.actions, -self.cfg["normalization"]["clip_actions"],
+                            self.commands[:,0:3] * self.commands_scale,
+                            [[self.remaining_time / self.episode_length_s]],
+                            (self.dof_pos - self.default_dof_pos).reshape(1, -1) * self.obs_scales["dof_pos"],
+                            self.dof_vel.reshape(1, -1) * self.obs_scales["dof_vel"],
+                            torch.clip(self.actions, -self.cfg["normalization"]["clip_actions"],
                                         self.cfg["normalization"]["clip_actions"]).cpu().detach().numpy().reshape(1, -1)
                              ), axis=1)
         # print("get_obs output shape:", ob.shape)
