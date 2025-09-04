@@ -35,11 +35,15 @@ class LeggedRobotCfg(BaseConfig):
     class env:
         num_envs = 4096
         num_observations = 49
-        num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
+        # num_privileged_obs = 49 + 3 + 187 + 63 + 12 + 12 + 12 # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
+        num_privileged_obs = 49 + 3 + 63 + 12 + 12 + 12 # plane, no height 
+        num_privileged_latent = 32
         num_actions = 12
         env_spacing = 3.  # not used with heightfields/trimeshes 
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
+        num_actors = 2 
+        obs_history_length = 15
 
     class terrain:
         mesh_type = 'plane'
@@ -151,8 +155,39 @@ class LeggedRobotCfg(BaseConfig):
         randomize_timer_minus = 2.0  # timer_left is initialized with randomization: U(T-this, T)
         randomize_base_com = True
         added_com_range = [-0.01, 0.01]
-        randomize_action_delay = True
+        randomize_action_delay = False
         delay_ms_range = [0, 10] # ms
+
+        randomize_base_inertia = False
+        added_inertia_range_xx = [-0.005,0.005]
+        added_inertia_range_xy = [-0.00002,0.00002]
+        added_inertia_range_xz = [-0.0002,0.0002]
+        added_inertia_range_yy = [-0.02,0.02]
+        added_inertia_range_zz = [-0.02,0.02]
+
+        randomize_leg_mass = False
+        added_leg_mass_range = [-0.2,0.2]
+        factor_leg_mass_range = [0.85,1.15]
+
+        
+        randomize_leg_com = False
+        added_leg_com_range = [-0.015, 0.015]
+
+        randomize_motor = True # no use
+        motor_strength_range = [0.9, 1.1]
+
+        randomize_Kp_factor = True
+        Kp_factor_range = [0.8, 1.2]
+        
+        randomize_Kd_factor = True
+        Kd_factor_range = [0.8, 1.2]
+
+        randomize_motor_offset = True
+        motor_offset_range = [-0.02, 0.02]
+        
+        # walk these ways
+        rand_interval_s = 10
+        randomize_rigids_after_start = True
 
     class rewards:
         class scales:
@@ -178,13 +213,13 @@ class LeggedRobotCfg(BaseConfig):
             power = -2e-4
 
             ##### ABS #####
-            reach_pos_target_soft = 60.0
-            reach_pos_target_tight = 30.0
-            reach_heading_target = 30.0
+            # reach_pos_target_soft = 60.0
+            # reach_pos_target_tight = 30.0
+            # reach_heading_target = 30.0
             # reach_pos_target_times_heading = 2.0
             # velo_dir = 10.0
-            torque_limits = -20.0
-            dof_vel_limits = -20.0
+            # torque_limits = -20.0
+            # dof_vel_limits = -20.0
             # nomove = -20.0
 
             # ##### another #####
@@ -209,7 +244,7 @@ class LeggedRobotCfg(BaseConfig):
             # velocity = 1.0
 
             ##### wf_skill_planning #####
-            feet_height = -1.0 * 2.5
+            feet_height = -1.0 * 2
 
             # base_acc = 1.0
 
@@ -324,3 +359,4 @@ class LeggedRobotCfgPPO(BaseConfig):
         load_run = -1 # -1 = last run
         checkpoint = -1 # -1 = last saved model
         resume_path = None # updated from load_run and chkpt
+        student_reinforcing = False

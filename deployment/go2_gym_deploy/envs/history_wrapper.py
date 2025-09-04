@@ -9,9 +9,11 @@ class HistoryWrapper:
         self.env = env
 
         if isinstance(self.env.cfg, dict):
-            self.obs_history_length = self.env.cfg["env"]["num_observation_history"]
+            # self.obs_history_length = self.env.cfg["env"]["num_observation_history"]
+            self.obs_history_length = 15
         else:
-            self.obs_history_length = self.env.cfg.env.num_observation_history
+            # self.obs_history_length = self.env.cfg.env.num_observation_history
+            self.obs_history_length = 15
         self.num_obs_history = self.obs_history_length * self.env.num_obs
         self.obs_history = torch.zeros(self.env.num_envs, self.num_obs_history, dtype=torch.float,
                                        device=self.env.device, requires_grad=False)
@@ -22,8 +24,8 @@ class HistoryWrapper:
         privileged_obs = info["privileged_obs"]
 
         self.obs_history = torch.cat((self.obs_history[:, self.env.num_obs:], obs), dim=-1)
-        # print("obs shape:", obs.shape)
-        # print("obs_history shape:", self.obs_history.shape)
+        print("obs shape:", obs.shape)
+        print("obs_history shape:", self.obs_history.shape)
         return {'obs': obs, 'privileged_obs': privileged_obs, 'obs_history': self.obs_history}, rew, done, info
 
     def get_observations(self):

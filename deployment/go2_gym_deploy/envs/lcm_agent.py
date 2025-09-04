@@ -40,7 +40,7 @@ class LCMAgent():
         self.timestep = 0
 
         # self.num_obs = self.cfg["env"]["num_observations"]
-        self.num_obs = 45
+        self.num_obs = 49+32
         self.num_envs = 1
         self.num_privileged_obs = self.cfg["env"]["num_privileged_obs"]
         # self.num_actions = self.cfg["env"]["num_actions"]
@@ -152,7 +152,7 @@ class LCMAgent():
         ob = np.concatenate((self.body_linear_vel.reshape(1, -1) * self.obs_scales["lin_vel"],
                             self.body_angular_vel.reshape(1, -1) * self.obs_scales["ang_vel"],
                             self.gravity_vector.reshape(1, -1),
-                            self.commands[:,0:3] * self.commands_scale,
+                            self.commands[:,0:3],
                             [[self.remaining_time / self.episode_length_s]],
                             (self.dof_pos - self.default_dof_pos).reshape(1, -1) * self.obs_scales["dof_pos"],
                             self.dof_vel.reshape(1, -1) * self.obs_scales["dof_vel"],

@@ -1,7 +1,7 @@
 import torch
 
 # 替换为你的.pth文件路径
-pth_file = '/home/yd/program/legged_ball_catching-1/mujoco_test/model/rsl_rl_teacher_student/proprio_encoder/proprio_oracle.pth'
+pth_file = '/home/yd/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/proprio_encoder/proprio_oracle0-6000.pth'
 
 # 加载.pth文件，通常返回一个字典，包含模型权重、优化器状态等
 model_data = torch.load(pth_file, map_location='cpu')  # map_location='cpu'避免GPU依赖
