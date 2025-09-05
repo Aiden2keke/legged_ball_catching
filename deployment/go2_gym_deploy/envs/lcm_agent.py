@@ -40,7 +40,7 @@ class LCMAgent():
         self.timestep = 0
 
         # self.num_obs = self.cfg["env"]["num_observations"]
-        self.num_obs = 49+32
+        self.num_obs = 46
         self.num_envs = 1
         self.num_privileged_obs = self.cfg["env"]["num_privileged_obs"]
         # self.num_actions = self.cfg["env"]["num_actions"]

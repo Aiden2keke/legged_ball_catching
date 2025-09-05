@@ -119,7 +119,6 @@ def load_policy(logdir):
         proprio_encoder = MLPEncoder(input_dim=15*45)
         proprio_encoder.load_state_dict(torch.load(logdir + '/checkpoints/experiment/proposed_model/proprio_0922_3.pth'))
         proprio_encoder = proprio_encoder.to('cpu')
-        # print(proprio_encoder)
         proprio_encoder.eval()
 
         load_state_estimator = MLPEncoder(input_dim=45*15, hidden_dims=[512, 256, 64], latent_dim=8, activation='elu')
@@ -129,14 +128,13 @@ def load_policy(logdir):
     
     else:
         actor = Actor(num_obs=46+32, num_actions=12)
-        actor.load_state_dict(torch.load('//home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/actor/actor_oracle38-5-15000.pth'))
+        actor.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/actor/actor_oracle2-0-16500.pth'))
         actor = actor.to('cpu')
         actor.eval()
 
         proprio_encoder = MLPEncoder(input_dim=5*46)
-        proprio_encoder.load_state_dict(torch.load(logdir + '/checkpoints/experiment/proprio_encoder/proprio_oracle_TS_re3.pth'))
+        proprio_encoder.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/proprio_encoder/proprio_oracle2-0-16500.pth'))
         proprio_encoder = proprio_encoder.to('cpu')
-        # print(proprio_encoder)
         proprio_encoder.eval()
         
 
@@ -152,10 +150,10 @@ def load_policy(logdir):
         global with_load_estimator
 
         time_step += 1
-        obs_list.append(obs["obs"].to('cpu'))
-        if time_step % 20 == 0:
+        # obs_list.append(obs["obs"].to('cpu'))
+        # if time_step % 20 == 0:
             # print("obs recorded")
-            np.save("obs_list.npy", np.array(obs_list))
+            # np.save("obs_list.npy", np.array(obs_list))
         
         if with_load_estimator:
             proprio_latent = proprio_encoder(obs["obs_history"].to('cpu'))
@@ -166,7 +164,6 @@ def load_policy(logdir):
             # info['proprio_latent'] = proprio_latent
         else:
             proprio_latent = proprio_encoder(obs["obs_history"].to('cpu'))
-            print("obs['obs_history'] shape:", obs["obs_history"].shape)
             actor_input = torch.cat((obs["obs"].to('cpu'), torch.nn.functional.normalize(proprio_latent, p=2, dim=-1)), dim=-1)
             action = actor(actor_input)
 
