@@ -760,7 +760,7 @@ class LeggedRobot(BaseTask):
             env_ids (List[int]): ids of environments being reset
         """
         # If the tracking reward is above 80% of the maximum, increase the range of commands
-        if torch.mean(self.episode_sums["tracking_position"][env_ids]) / self.max_episode_length > 0.9 * self.reward_scales["tracking_position"]:
+        if torch.mean(self.episode_sums["tracking_position"][env_ids]) / self.max_episode_length > 0.85 * self.reward_scales["tracking_position"]:
             self.command_ranges["pos_1"][0] = np.clip(self.command_ranges["pos_1"][0] - 0.1, self.cfg.commands.min_pos_1, 0.)
             self.command_ranges["pos_1"][1] = np.clip(self.command_ranges["pos_1"][1] + 0.1, 0., self.cfg.commands.max_pos_1)
         if torch.mean(self.episode_sums["tracking_yaw"][env_ids]) / self.max_episode_length > 0.9 * self.reward_scales["tracking_yaw"]:

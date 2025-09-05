@@ -132,7 +132,7 @@ data = mujoco.MjData(model)
 # 加载 policy 和 encoder 模型
 ############################
 device = torch.device("cuda")
-run_name = "2-0-16500"
+run_name = "5-16500"
 actor = Actor(num_obs=46+32, num_actions=12, hidden_dims=[512, 256, 128])
 # actor.load_state_dict(torch.load(actor_dir + "/actor_oracle41-1-10000.pth"))
 actor.load_state_dict(torch.load(actor_dir + f"/actor_oracle{run_name}.pth"))
