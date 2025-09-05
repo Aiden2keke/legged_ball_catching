@@ -128,12 +128,12 @@ def load_policy(logdir):
         load_state_estimator.eval()
     
     else:
-        actor = Actor(num_obs=49+32, num_actions=12)
+        actor = Actor(num_obs=46+32, num_actions=12)
         actor.load_state_dict(torch.load('//home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/actor/actor_oracle38-5-15000.pth'))
         actor = actor.to('cpu')
         actor.eval()
 
-        proprio_encoder = MLPEncoder(input_dim=15*49)
+        proprio_encoder = MLPEncoder(input_dim=5*46)
         proprio_encoder.load_state_dict(torch.load(logdir + '/checkpoints/experiment/proprio_encoder/proprio_oracle_TS_re3.pth'))
         proprio_encoder = proprio_encoder.to('cpu')
         # print(proprio_encoder)

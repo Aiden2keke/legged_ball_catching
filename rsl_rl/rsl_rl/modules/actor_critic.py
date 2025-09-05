@@ -64,7 +64,7 @@ class ActorCritic(nn.Module):
     def __init__(self,  num_actor_obs,
                         num_critic_obs,
                         num_actions,
-                        obs_history_length=15,
+                        obs_history_length=5,
                         actor_hidden_dims=[256, 256, 256],
                         critic_hidden_dims=[256, 256, 256],
                         encoder_hidden_dims=[512, 256, 128],

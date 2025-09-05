@@ -34,16 +34,16 @@ import numpy as np
 class LeggedRobotCfg(BaseConfig):
     class env:
         num_envs = 4096
-        num_observations = 49
+        num_observations = 49 - 3
         # num_privileged_obs = 49 + 3 + 187 + 63 + 12 + 12 + 12 # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
-        num_privileged_obs = 49 + 3 + 63 + 12 + 12 + 12 # plane, no height 
+        num_privileged_obs = 46 + 3 + 63 + 12 + 12 + 12 # plane, no height 
         num_privileged_latent = 32
         num_actions = 12
         env_spacing = 3.  # not used with heightfields/trimeshes 
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
         num_actors = 2 
-        obs_history_length = 15
+        obs_history_length = 5
 
     class terrain:
         mesh_type = 'plane'

@@ -393,8 +393,8 @@ class LeggedRobot(BaseTask):
         """ Computes observations
         """
         # self.compute_phase()
-        self.proprioceptive_obs_buf = torch.cat((  self.base_lin_vel * self.obs_scales.lin_vel, # 0:3 线速度 (vx,vy,vz)
-                                    self.base_ang_vel  * self.obs_scales.ang_vel, # 3:6 角速度 (ωx,ωy,ωz)
+        self.proprioceptive_obs_buf = torch.cat((  # self.base_lin_vel * self.obs_scales.lin_vel, # 0:3 线速度 (vx,vy,vz)
+                                    self.base_ang_vel * self.obs_scales.ang_vel, # 3:6 角速度 (ωx,ωy,ωz)
                                     self.projected_gravity, # 6:9 重力投影
                                     self.commands[:, :3], # 9:12 即相对位置误差 （x,y）＋朝向误差
                                     self.timer_left.unsqueeze(1) / self.max_episode_length_s,  # 12:13 归一化后的剩余时间比例
@@ -429,7 +429,7 @@ class LeggedRobot(BaseTask):
                                         ),dim=-1)
             self.privileged_obs_buf = torch.cat((
                     self.base_lin_vel * self.obs_scales.lin_vel, # 3
-                    self.obs_buf, # 49
+                    self.obs_buf, # 46
                     # heights, # plane
                     self.adapt_observations, # 63
                     self.torques, # 12
@@ -781,20 +781,20 @@ class LeggedRobot(BaseTask):
         self.add_noise = self.cfg.noise.add_noise
         noise_scales = self.cfg.noise.noise_scales
         noise_level = self.cfg.noise.noise_level
-        noise_vec[:3] = noise_scales.lin_vel * noise_level * self.obs_scales.lin_vel
-        noise_vec[3:6] = noise_scales.ang_vel * noise_level * self.obs_scales.ang_vel
-        noise_vec[6:9] = noise_scales.gravity * noise_level
-        noise_vec[9:13] = 0. # commands
-        noise_vec[13:25] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
-        noise_vec[25:37] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel
-        noise_vec[37:49] = 0. # previous actions
+        # noise_vec[:3] = noise_scales.lin_vel * noise_level * self.obs_scales.lin_vel
+        # noise_vec[3:6] = noise_scales.ang_vel * noise_level * self.obs_scales.ang_vel
+        # noise_vec[6:9] = noise_scales.gravity * noise_level
+        # noise_vec[9:13] = 0. # commands
+        # noise_vec[13:25] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
+        # noise_vec[25:37] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel
+        # noise_vec[37:49] = 0. # previous actions
 
-        # noise_vec[:3] = noise_scales.ang_vel * noise_level * self.obs_scales.ang_vel
-        # noise_vec[3:6] = noise_scales.gravity * noise_level
-        # noise_vec[6:9] = 0. # commands
-        # noise_vec[9:21] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
-        # noise_vec[21:33] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel
-        # noise_vec[33:45] = 0. # previous actions
+        noise_vec[:3] = noise_scales.ang_vel * noise_level * self.obs_scales.ang_vel
+        noise_vec[3:6] = noise_scales.gravity * noise_level
+        noise_vec[6:10] = 0. # commands
+        noise_vec[10:22] = noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos
+        noise_vec[22:34] = noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel
+        noise_vec[34:46] = 0. # previous actions
         if self.cfg.terrain.measure_heights:
             noise_vec[49:236] = noise_scales.height_measurements* noise_level * self.obs_scales.height_measurements
         return noise_vec

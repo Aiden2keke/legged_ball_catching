@@ -52,7 +52,7 @@ class GO2RoughCfgPPO( LeggedRobotCfgPPO ):
         entropy_coef = 0.01
     class runner( LeggedRobotCfgPPO.runner ):
         run_name = ''
-        max_iterations = 15000
+        max_iterations = 7500
         experiment_name = 'rough_go2'
 
   

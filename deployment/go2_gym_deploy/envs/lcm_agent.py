@@ -149,7 +149,7 @@ class LCMAgent():
         self.body_angular_vel = self.se.get_body_angular_vel()
 
         self.commands_scale = np.array([1.0, 1.0, 0.25])
-        ob = np.concatenate((self.body_linear_vel.reshape(1, -1) * self.obs_scales["lin_vel"],
+        ob = np.concatenate((#self.body_linear_vel.reshape(1, -1) * self.obs_scales["lin_vel"],
                             self.body_angular_vel.reshape(1, -1) * self.obs_scales["ang_vel"],
                             self.gravity_vector.reshape(1, -1),
                             self.commands[:,0:3],
