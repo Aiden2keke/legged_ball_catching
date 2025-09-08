@@ -233,6 +233,10 @@ class RCControllerProfile(CommandProfile):
 
         # --- produce velocity command depending on move_active ---
         cmd = np.zeros(9, dtype=float)  # keep same shape as other profiles (first 3 are vx,vy,yaw)
+        
+        # auxiliary rotation limit parameters
+        tangent_aux_dist = 0.6
+        max_yaw_rad = np.pi/3
         if self.move_active and self.target_pos is not None:
             vec_world = self.target_pos - dog_coord[0:2]
             dist = float(np.linalg.norm(vec_world))
@@ -243,13 +247,21 @@ class RCControllerProfile(CommandProfile):
                 dx_world = self.target_pos[0] - dog_coord[0] # x position command
                 dy_world = self.target_pos[1] - dog_coord[1]  # y position command
                 tmp_vec_in_frame_dog = self.T_world_to_dog@np.array([dx_world, dy_world, 0, 0])
-                cmd[0] = tmp_vec_in_frame_dog[0]
-                cmd[1] = tmp_vec_in_frame_dog[1]
-                
                 yaw_diff = np.arctan2(tmp_vec_in_frame_dog[1], tmp_vec_in_frame_dog[0])
-                cmd[2] = np.clip(yaw_diff, -0.3, 0.3)
+                if abs(yaw_diff) > max_yaw_rad:
+                    sign = 1 if yaw_diff > 0 else -1
+                    aux_x = tangent_aux_dist * np.cos(sign * max_yaw_rad)
+                    aux_y = tangent_aux_dist * np.sin(sign * max_yaw_rad)
+                    cmd[0] = aux_x
+                    cmd[1] = aux_y
+                    cmd[2] = np.clip(sign * max_yaw_rad, -0.3, 0.3) # 17.2deg
+                else:
+                    cmd[0] = tmp_vec_in_frame_dog[0]
+                    cmd[1] = tmp_vec_in_frame_dog[1]
+                    cmd[2] = np.clip(yaw_diff, -0.3, 0.3)
                 
                 print(f"World_v:({dx_world:.2f}, {dy_world:.2f}), cmd_actual:({cmd[0]:.2f},{cmd[1]:.2f},{cmd[2]/np.pi*180:.2f}deg), time:{self.remaining_time*1e3:.2f}ms")
+                self.state_estimator.publish_action(self.target_pos)
                 # TODO: publish actual cmd for visualization
 
         else:

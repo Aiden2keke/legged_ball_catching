@@ -110,41 +110,20 @@ def load_policy(logdir):
     # body = torch.jit.load(logdir + '/checkpoints/body_latest.jit').to('cpu')
     global with_load_estimator
     
-    if with_load_estimator:
-        actor = Actor(num_obs=49+32+8, num_actions=12)
-        actor.load_state_dict(torch.load(logdir + '/checkpoints/experiment/proposed_model/actor_0922_3.pth'))
-        actor = actor.to('cpu')
-        actor.eval()
+    actor = Actor(num_obs=46+32, num_actions=12)
+    actor.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/actor/actor_oracle2-0-16500.pth'))
+    actor = actor.to('cpu')
+    actor.eval()
 
-        proprio_encoder = MLPEncoder(input_dim=15*45)
-        proprio_encoder.load_state_dict(torch.load(logdir + '/checkpoints/experiment/proposed_model/proprio_0922_3.pth'))
-        proprio_encoder = proprio_encoder.to('cpu')
-        proprio_encoder.eval()
-
-        load_state_estimator = MLPEncoder(input_dim=45*15, hidden_dims=[512, 256, 64], latent_dim=8, activation='elu')
-        load_state_estimator.load_state_dict(torch.load(logdir + '/checkpoints/experiment/proposed_model/load_estimator_0922_3.pth'))
-        load_state_estimator = load_state_estimator.to('cpu')
-        load_state_estimator.eval()
-    
-    else:
-        actor = Actor(num_obs=46+32, num_actions=12)
-        actor.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/actor/actor_oracle2-0-16500.pth'))
-        actor = actor.to('cpu')
-        actor.eval()
-
-        proprio_encoder = MLPEncoder(input_dim=5*46)
-        proprio_encoder.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/proprio_encoder/proprio_oracle2-0-16500.pth'))
-        proprio_encoder = proprio_encoder.to('cpu')
-        proprio_encoder.eval()
+    proprio_encoder = MLPEncoder(input_dim=5*46)
+    proprio_encoder.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/proprio_encoder/proprio_oracle2-0-16500.pth'))
+    proprio_encoder = proprio_encoder.to('cpu')
+    proprio_encoder.eval()
         
 
 
     def policy(obs, info):
         i = 0
-        # latent = adaptation_module.forward(obs["obs_history"].to('cpu'))
-        # action = body.forward(torch.cat((obs["obs_history"].to('cpu'), latent), dim=-1))
-        # info['latent'] = latent
-
         global obs_list
         global time_step
         global with_load_estimator
@@ -155,17 +134,9 @@ def load_policy(logdir):
             # print("obs recorded")
             # np.save("obs_list.npy", np.array(obs_list))
         
-        if with_load_estimator:
-            proprio_latent = proprio_encoder(obs["obs_history"].to('cpu'))
-            load_estimation = load_state_estimator(obs["obs_history"].to('cpu'))
-            actor_input = torch.cat((obs["obs"].to('cpu'), torch.nn.functional.normalize(proprio_latent, p=2, dim=-1), load_estimation), dim=-1)
-            # actor_input = torch.cat((obs["obs"].to('cpu'), torch.nn.functional.normalize(proprio_latent, p=2, dim=-1)), dim=-1)
-            action = actor(actor_input)
-            # info['proprio_latent'] = proprio_latent
-        else:
-            proprio_latent = proprio_encoder(obs["obs_history"].to('cpu'))
-            actor_input = torch.cat((obs["obs"].to('cpu'), torch.nn.functional.normalize(proprio_latent, p=2, dim=-1)), dim=-1)
-            action = actor(actor_input)
+        proprio_latent = proprio_encoder(obs["obs_history"].to('cpu'))
+        actor_input = torch.cat((obs["obs"].to('cpu'), torch.nn.functional.normalize(proprio_latent, p=2, dim=-1)), dim=-1)
+        action = actor(actor_input)
 
 
         if torch.max(action) > 5.5 or torch.min(action) < -5.5:

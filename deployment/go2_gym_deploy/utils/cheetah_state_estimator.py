@@ -401,9 +401,10 @@ class StateEstimator:
         if not hasattr(self, 'dog_coord'):
             self.dog_coord = np.zeros(3)
         return np.array(self.dog_coord)
-    def publish_dog_target(self, target):
+    def publish_dog_target(self, target, action):
         msg = dog_feedback_info()
         msg.dog_target_coord = target
+        msg.dog_action = action
         self.lc.publish("dog_feedback_info", msg.encode())
     def get_T_world_to_dog(self):
         if not hasattr(self, 'T_world_to_dog'):

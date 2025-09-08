@@ -1,8 +1,8 @@
 // RC command information is from dog
 // need to send back to remote PC(with realsense)
-
-// Only intended for debugging purpose
+// send real action feed into policy to PC for visualization 
 struct dog_feedback_info 
 {
     float dog_target_coord[2];
+    float dog_action[2];
 }

@@ -14,14 +14,16 @@ class dog_feedback_info(object):
     Only intended for debugging purpose
     """
 
-    __slots__ = ["dog_target_coord"]
+    __slots__ = ["dog_target_coord", "dog_action"]
 
-    __typenames__ = ["float"]
+    __typenames__ = ["float", "float"]
 
-    __dimensions__ = [[2]]
+    __dimensions__ = [[2], [2]]
 
     def __init__(self):
         self.dog_target_coord = [ 0.0 for dim0 in range(2) ]
+        """ LCM Type: float[2] """
+        self.dog_action = [ 0.0 for dim0 in range(2) ]
         """ LCM Type: float[2] """
 
     def encode(self):
@@ -32,6 +34,7 @@ class dog_feedback_info(object):
 
     def _encode_one(self, buf):
         buf.write(struct.pack('>2f', *self.dog_target_coord[:2]))
+        buf.write(struct.pack('>2f', *self.dog_action[:2]))
 
     @staticmethod
     def decode(data: bytes):
@@ -47,12 +50,13 @@ class dog_feedback_info(object):
     def _decode_one(buf):
         self = dog_feedback_info()
         self.dog_target_coord = struct.unpack('>2f', buf.read(8))
+        self.dog_action = struct.unpack('>2f', buf.read(8))
         return self
 
     @staticmethod
     def _get_hash_recursive(parents):
         if dog_feedback_info in parents: return 0
-        tmphash = (0xc966c91a70e85218) & 0xffffffffffffffff
+        tmphash = (0x9f215ec3321c368) & 0xffffffffffffffff
         tmphash  = (((tmphash<<1)&0xffffffffffffffff) + (tmphash>>63)) & 0xffffffffffffffff
         return tmphash
     _packed_fingerprint = None
