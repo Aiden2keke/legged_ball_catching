@@ -225,92 +225,32 @@ class RCControllerProfile(CommandProfile):
         # --- handle R2 press to start movement (rising edge triggers) ---
         r1_pressed = (self.button_states[self.R1_BUTTON_IDX] == 1)
         r1_prev = (prev_button_states[self.R1_BUTTON_IDX] == 1)
-        if r1_pressed and not r1_prev and not self.move_active:
+        if r1_pressed and not r1_prev:
+            self.move_active = not self.move_active
             # rising edge -> start moving towards target
-            if self.target_pos is not None:
-                dist = float(np.linalg.norm(self.target_pos - dog_coord[0:2]))
-                if dist < 1e-4:
-                    self.move_active = False
-                    self.remaining_time = 0.0
-                else:
-                    self.move_active = True
-                    self.remaining_time = float(dist / max(self.max_speed, 1e-3))
-                    reset_timer = True
-        
-        # if some triggered_commands exist we preserve that logic (execute triggered commands)
-        # (this mirrors previous behavior)
-        for button in range(4):
-            if self.triggered_commands[button] is not None:
-                # keep previous triggered-logic
-                if self.button_states[button] == 1 and prev_button_states[button] == 0:
-                    if not self.currently_triggered[button]:
-                        self.triggered_commands[button].reset(t)
-                        reset_timer = True
-                        self.currently_triggered[button] = True
-                    else:
-                        self.currently_triggered[button] = False
-                if self.currently_triggered[button] and t < self.triggered_commands[button].max_timestep:
-                    return self.triggered_commands[button].get_command(t), reset_timer
+            if not self.move_active:
+                reset_timer = True
 
         # --- produce velocity command depending on move_active ---
         cmd = np.zeros(9, dtype=float)  # keep same shape as other profiles (first 3 are vx,vy,yaw)
-        if self.move_active:
-            vec_world = self.target_pos - dog_coord[0:2]  # [dx,dy] in world
+        if self.move_active and self.target_pos is not None:
+            vec_world = self.target_pos - dog_coord[0:2]
             dist = float(np.linalg.norm(vec_world))
+            self.remaining_time = float(dist / max(self.max_speed, 1e-3))
             if dist < 0.02:  # threshold reached
-                self.move_active = False
                 self.remaining_time = 0.0
-                # keep cmd zero
             else:
-                # convert displacement to body frame using base_yaw if available
-                if base_yaw is not None:
-                    c = math.cos(-base_yaw); s = math.sin(-base_yaw)
-                    # rotation by -yaw: body = R(-yaw) * world_vec
-                    body_dx = c * vec_world[0] - s * vec_world[1]
-                    body_dy = s * vec_world[0] + c * vec_world[1]
-                else:
-                    # if no yaw info, treat world==body (best-effort)
-                    body_dx = vec_world[0]; body_dy = vec_world[1]
-
-                # desired linear velocity (approx): v = displacement / remaining_time
-                denom = max(self.remaining_time, self.dt, 1e-3)
-                vx_des = body_dx / denom
-                vy_des = body_dy / denom
-                # clip by max_speed (in xy plane)
-                v_norm = math.hypot(vx_des, vy_des)
-                if v_norm > self.max_speed:
-                    vx_des = vx_des / v_norm * self.max_speed
-                    vy_des = vy_des / v_norm * self.max_speed
-
-                # desired yaw: rotate robot to face the target point (optional)
-                # compute heading target in world frame and current heading -> yaw_error
-                if base_yaw is not None:
-                    target_heading = math.atan2(vec_world[1], vec_world[0])
-                    yaw_err = wrap_to_pi(target_heading - base_yaw)
-                    yaw_rate_des = yaw_err / denom
-                    # clip yaw_rate
-                    yaw_rate_des = max(-self.max_yaw_rate, min(self.max_yaw_rate, yaw_rate_des))
-                else:
-                    yaw_rate_des = 0.0
-
-                # cmd[0] = vx_des
-                # cmd[1] = vy_des
                 dx_world = self.target_pos[0] - dog_coord[0] # x position command
                 dy_world = self.target_pos[1] - dog_coord[1]  # y position command
-                tmp_vec_in_frame_dog = self.T_world_to_dog@np.array([dx_world, dy_world,0,0])
+                tmp_vec_in_frame_dog = self.T_world_to_dog@np.array([dx_world, dy_world, 0, 0])
                 cmd[0] = tmp_vec_in_frame_dog[0]
                 cmd[1] = tmp_vec_in_frame_dog[1]
                 
                 yaw_diff = np.arctan2(tmp_vec_in_frame_dog[1], tmp_vec_in_frame_dog[0])
                 cmd[2] = np.clip(yaw_diff, -0.3, 0.3)
                 
-                # decrement remaining_time
-                self.remaining_time = max(0.0, self.remaining_time - self.dt)
-                if self.remaining_time <= 0.0:
-                    # reached end of planned time -> stop
-                    self.move_active = False
-                
-                print(f"{dx_world:.2f}, {dy_world:.2f}, {cmd[0]:.2f},{cmd[1]:.2f},{cmd[2]/np.pi*180:.2f}deg,time:{self.remaining_time*1e3:.2f}ms")
+                print(f"World_v:({dx_world:.2f}, {dy_world:.2f}), cmd_actual:({cmd[0]:.2f},{cmd[1]:.2f},{cmd[2]/np.pi*180:.2f}deg), time:{self.remaining_time*1e3:.2f}ms")
+                # TODO: publish actual cmd for visualization
 
         else:
             # not moving -> zero
