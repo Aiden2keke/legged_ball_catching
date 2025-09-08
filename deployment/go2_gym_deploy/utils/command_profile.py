@@ -212,7 +212,6 @@ class RCControllerProfile(CommandProfile):
             # note: assume joystick axes are in robot body frame; if they are world-frame you'd need transform
             self.target_pos[0] += dx
             self.target_pos[1] += dy
-            self.state_estimator.publish_dog_target(self.target_pos)
             # print(f"{raw_cmd[0]:.2f},{raw_cmd[1]:.2f},{raw_cmd[2]:.2f}")
             if not self.move_active:
                 # print(f"target:{self.target_pos[0]:.2f},{self.target_pos[1]:.2f}")
@@ -260,9 +259,8 @@ class RCControllerProfile(CommandProfile):
                     cmd[1] = tmp_vec_in_frame_dog[1]
                     cmd[2] = np.clip(yaw_diff, -0.3, 0.3)
                 
-                print(f"World_v:({dx_world:.2f}, {dy_world:.2f}), cmd_actual:({cmd[0]:.2f},{cmd[1]:.2f},{cmd[2]/np.pi*180:.2f}deg), time:{self.remaining_time*1e3:.2f}ms")
-                self.state_estimator.publish_action(self.target_pos)
-                # TODO: publish actual cmd for visualization
+                # print(f"World_v:({dx_world:.2f}, {dy_world:.2f}), cmd_actual:({cmd[0]:.2f},{cmd[1]:.2f},{cmd[2]/np.pi*180:.2f}deg), time:{self.remaining_time*1e3:.2f}ms")
+                self.state_estimator.publish_dog_target(self.target_pos, cmd[0:2])
 
         else:
             # not moving -> zero
