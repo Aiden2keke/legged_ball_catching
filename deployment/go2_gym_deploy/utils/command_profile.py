@@ -149,7 +149,7 @@ def wrap_to_pi(x):
 
 class RCControllerProfile(CommandProfile):
     def __init__(self, dt, state_estimator, x_scale=1.0, y_scale=1.0, yaw_scale=1.0,
-                 max_speed=0.5, max_yaw_rate=0.6/2, joystick_meter_per_second=0.5):
+                 max_speed=0.5, max_yaw_rate=0.6/2, joystick_meter_per_second=1.5):
         """
         joystick_meter_per_second: 当摇杆满偏 (1.0) 时，target_pos 每秒移动多少米（用于用摇杆移动 target_pos）
         max_speed: 机器人匀速上限（m/s），用于计算 target_time = dist / max_speed
@@ -208,7 +208,7 @@ class RCControllerProfile(CommandProfile):
         else:
             # dt exists from CommandProfile
             dx = raw_cmd[0] * self.joystick_meter_per_second * self.dt
-            dy = raw_cmd[1] * self.joystick_meter_per_second * self.dt
+            dy = raw_cmd[1] * -self.joystick_meter_per_second * self.dt # to account for joystick y being inverted
             # note: assume joystick axes are in robot body frame; if they are world-frame you'd need transform
             self.target_pos[0] += dx
             self.target_pos[1] += dy
@@ -234,14 +234,20 @@ class RCControllerProfile(CommandProfile):
         cmd = np.zeros(9, dtype=float)  # keep same shape as other profiles (first 3 are vx,vy,yaw)
         
         # auxiliary rotation limit parameters
-        tangent_aux_dist = 0.6
+        tangent_aux_dist = 2.0
         max_yaw_rad = np.pi/3
+        aux_rad = np.pi*2/3
+        if not self.move_active:
+            self.state_estimator.publish_dog_target(self.target_pos, [0.001, 0.001])
         if self.move_active and self.target_pos is not None:
             vec_world = self.target_pos - dog_coord[0:2]
             dist = float(np.linalg.norm(vec_world))
             self.remaining_time = float(dist / max(self.max_speed, 1e-3))
-            if dist < 0.02:  # threshold reached
+            if dist < 0.15:  # threshold reached
                 self.remaining_time = 0.0
+                cmd[0] = 0.0
+                cmd[1] = 0.0
+                cmd[2] = 0.0
             else:
                 dx_world = self.target_pos[0] - dog_coord[0] # x position command
                 dy_world = self.target_pos[1] - dog_coord[1]  # y position command
@@ -249,17 +255,17 @@ class RCControllerProfile(CommandProfile):
                 yaw_diff = np.arctan2(tmp_vec_in_frame_dog[1], tmp_vec_in_frame_dog[0])
                 if abs(yaw_diff) > max_yaw_rad:
                     sign = 1 if yaw_diff > 0 else -1
-                    aux_x = tangent_aux_dist * np.cos(sign * max_yaw_rad)
-                    aux_y = tangent_aux_dist * np.sin(sign * max_yaw_rad)
+                    aux_x = tangent_aux_dist * np.cos(sign * aux_rad)
+                    aux_y = tangent_aux_dist * np.sin(sign * aux_rad)
                     cmd[0] = aux_x
                     cmd[1] = aux_y
-                    cmd[2] = np.clip(sign * max_yaw_rad, -0.3, 0.3) # 17.2deg
+                    cmd[2] = np.clip(sign * aux_rad, -0.3, 0.3) # 17.2deg
                 else:
                     cmd[0] = tmp_vec_in_frame_dog[0]
                     cmd[1] = tmp_vec_in_frame_dog[1]
                     cmd[2] = np.clip(yaw_diff, -0.3, 0.3)
                 
-                # print(f"World_v:({dx_world:.2f}, {dy_world:.2f}), cmd_actual:({cmd[0]:.2f},{cmd[1]:.2f},{cmd[2]/np.pi*180:.2f}deg), time:{self.remaining_time*1e3:.2f}ms")
+                print(f"World_v:({dx_world:.2f}, {dy_world:.2f}), cmd_actual:({cmd[0]:.2f},{cmd[1]:.2f},{cmd[2]/np.pi*180:.2f}deg), time:{self.remaining_time*1e3:.2f}ms")
                 self.state_estimator.publish_dog_target(self.target_pos, cmd[0:2])
 
         else:
