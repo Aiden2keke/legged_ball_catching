@@ -169,6 +169,7 @@ class RCControllerProfile(CommandProfile):
 
         # --- new fields for target-position control ---
         self.target_pos = None            # np.array([x,y,z]) or None until initialized
+        self.last_valid_st_tgt = None
         self.move_active = False
         self.remaining_time = 0.0
         self.max_speed = 0.5
@@ -238,9 +239,15 @@ class RCControllerProfile(CommandProfile):
         max_yaw_rad = np.pi/3
         aux_rad = np.pi*2/3
         if not self.move_active:
-            self.state_estimator.publish_dog_target(self.target_pos, [0.001, 0.001])
-        if self.move_active and self.target_pos is not None:
-            vec_world = self.target_pos - dog_coord[0:2]
+            self.state_estimator.publish_dog_target(self.target_pos, [0.0, 0.0])
+        # shift target pos to shuttlecock if valid
+        shuttlecock_target, target_valid = self.state_estimator.get_shuttlecock_target()
+        if self.last_valid_st_tgt == None:
+            self.last_valid_st_tgt = np.array([0.0, 0.0])
+        if target_valid:
+            self.last_valid_st_tgt = shuttlecock_target
+        if self.move_active and self.last_valid_st_tgt is not None:
+            vec_world = self.last_valid_st_tgt - dog_coord[0:2]
             dist = float(np.linalg.norm(vec_world))
             self.remaining_time = float(dist / max(self.max_speed, 1e-3))
             if dist < 0.15:  # threshold reached
@@ -249,8 +256,10 @@ class RCControllerProfile(CommandProfile):
                 cmd[1] = 0.0
                 cmd[2] = 0.0
             else:
-                dx_world = self.target_pos[0] - dog_coord[0] # x position command
-                dy_world = self.target_pos[1] - dog_coord[1]  # y position command
+                dx_world = self.last_valid_st_tgt[0] - dog_coord[0] # x position command
+                # dx_world = self.target_pos[0] - dog_coord[0] # x position command
+                dy_world = self.last_valid_st_tgt[1] - dog_coord[1]  # y position command
+                # dy_world = self.target_pos[1] - dog_coord[1]  # y position command
                 tmp_vec_in_frame_dog = self.T_world_to_dog@np.array([dx_world, dy_world, 0, 0])
                 yaw_diff = np.arctan2(tmp_vec_in_frame_dog[1], tmp_vec_in_frame_dog[0])
                 if abs(yaw_diff) > max_yaw_rad:

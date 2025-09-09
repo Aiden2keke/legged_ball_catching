@@ -10,6 +10,8 @@ from go2_gym_deploy.lcm_types.rc_command_lcmt import rc_command_lcmt
 from go2_gym_deploy.lcm_types.state_estimator_lcmt import state_estimator_lcmt
 from go2_gym_deploy.lcm_types.dog_in_frame_info import dog_in_frame_info
 from go2_gym_deploy.lcm_types.dog_feedback_info import dog_feedback_info
+
+from go2_gym_deploy.lcm_types.shuttlecock_target_t import shuttlecock_target_t
 # 不调用相机 !!!
 # from go1_gym_deploy.lcm_types.camera_message_lcmt import camera_message_lcmt
 # from go1_gym_deploy.lcm_types.camera_message_rect_wide import camera_message_rect_wide
@@ -116,6 +118,7 @@ class StateEstimator:
         self.legdata_state_subscription = self.lc.subscribe("leg_control_data", self._legdata_cb)
         self.rc_command_subscription = self.lc.subscribe("rc_command", self._rc_command_cb)
         self.dog_frame_subscription = self.lc.subscribe("dog_in_frame_info", self._dog_frame_cb)
+        self.shuttlecock_target_sub = self.lc.subscribe("dog_st_tgt", self._shuttlecock_target_cb)
 # --------------------------------------------------------------
         # if use_cameras:
         #     for cam_id in [1, 2, 3, 4, 5]:
@@ -395,12 +398,20 @@ class StateEstimator:
         self.T_dog_to_world = np.array(msg.T_dog_to_world).reshape((4, 4))
         # TODO orientation is not used yet
         self.dog_orientation = np.array(msg.dog_orientation)
-
-        # print(f"dog frame: {self.body_loc}, {self.body_quat}")
+    def _shuttlecock_target_cb(self, channel, data):
+        msg = shuttlecock_target_t.decode(data)
+        self.shuttlecock_target = np.array(msg.target_coord)
+        self.shuttlecock_target_valid = msg.target_valid
     def get_dog_coord(self):
         if not hasattr(self, 'dog_coord'):
             self.dog_coord = np.zeros(3)
         return np.array(self.dog_coord)
+    def get_shuttlecock_target(self):
+        if not hasattr(self, 'shuttlecock_target'):
+            self.shuttlecock_target = np.zeros(2)
+        if not hasattr(self, 'shuttlecock_target_valid'):
+            self.shuttlecock_target_valid = 0
+        return np.array(self.shuttlecock_target), self.shuttlecock_target_valid
     def publish_dog_target(self, target, action):
         msg = dog_feedback_info()
         msg.dog_target_coord = target
