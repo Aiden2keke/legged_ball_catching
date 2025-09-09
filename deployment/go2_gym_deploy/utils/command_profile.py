@@ -169,7 +169,7 @@ class RCControllerProfile(CommandProfile):
 
         # --- new fields for target-position control ---
         self.target_pos = None            # np.array([x,y,z]) or None until initialized
-        self.last_valid_st_tgt = None
+        self.last_valid_st_tgt = np.array([0.0, 0.0])
         self.move_active = False
         self.remaining_time = 0.0
         self.max_speed = 0.5
@@ -235,17 +235,16 @@ class RCControllerProfile(CommandProfile):
         cmd = np.zeros(9, dtype=float)  # keep same shape as other profiles (first 3 are vx,vy,yaw)
         
         # auxiliary rotation limit parameters
-        tangent_aux_dist = 2.0
+        tangent_aux_dist = 2.35
         max_yaw_rad = np.pi/3
         aux_rad = np.pi*2/3
         if not self.move_active:
             self.state_estimator.publish_dog_target(self.target_pos, [0.0, 0.0])
         # shift target pos to shuttlecock if valid
         shuttlecock_target, target_valid = self.state_estimator.get_shuttlecock_target()
-        if self.last_valid_st_tgt == None:
-            self.last_valid_st_tgt = np.array([0.0, 0.0])
         if target_valid:
             self.last_valid_st_tgt = shuttlecock_target
+            print(f"update tgt:({self.last_valid_st_tgt[0]:.2f}, {self.last_valid_st_tgt[1]:.2f})")
         if self.move_active and self.last_valid_st_tgt is not None:
             vec_world = self.last_valid_st_tgt - dog_coord[0:2]
             dist = float(np.linalg.norm(vec_world))

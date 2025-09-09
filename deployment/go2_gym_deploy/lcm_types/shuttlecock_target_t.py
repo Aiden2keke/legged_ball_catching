@@ -7,21 +7,19 @@ DO NOT MODIFY BY HAND!!!!
 from io import BytesIO
 import struct
 
-import uint8_t
-
 class shuttlecock_target_t(object):
 
     __slots__ = ["target_coord", "target_valid"]
 
-    __typenames__ = ["double", "uint8_t"]
+    __typenames__ = ["double", "int8_t"]
 
     __dimensions__ = [[2], None]
 
     def __init__(self):
         self.target_coord = [ 0.0 for dim0 in range(2) ]
         """ LCM Type: double[2] """
-        self.target_valid = uint8_t()
-        """ LCM Type: uint8_t """
+        self.target_valid = 0
+        """ LCM Type: int8_t """
 
     def encode(self):
         buf = BytesIO()
@@ -31,8 +29,7 @@ class shuttlecock_target_t(object):
 
     def _encode_one(self, buf):
         buf.write(struct.pack('>2d', *self.target_coord[:2]))
-        assert self.target_valid._get_packed_fingerprint() == uint8_t._get_packed_fingerprint()
-        self.target_valid._encode_one(buf)
+        buf.write(struct.pack(">b", self.target_valid))
 
     @staticmethod
     def decode(data: bytes):
@@ -48,14 +45,13 @@ class shuttlecock_target_t(object):
     def _decode_one(buf):
         self = shuttlecock_target_t()
         self.target_coord = struct.unpack('>2d', buf.read(16))
-        self.target_valid = uint8_t._decode_one(buf)
+        self.target_valid = struct.unpack(">b", buf.read(1))[0]
         return self
 
     @staticmethod
     def _get_hash_recursive(parents):
         if shuttlecock_target_t in parents: return 0
-        newparents = parents + [shuttlecock_target_t]
-        tmphash = (0x13c0b7d08ed93df1+ uint8_t._get_hash_recursive(newparents)) & 0xffffffffffffffff
+        tmphash = (0xf7900ffb68be3e84) & 0xffffffffffffffff
         tmphash  = (((tmphash<<1)&0xffffffffffffffff) + (tmphash>>63)) & 0xffffffffffffffff
         return tmphash
     _packed_fingerprint = None

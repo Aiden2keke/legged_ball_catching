@@ -1,5 +1,5 @@
 struct shuttlecock_target_t
 {
     double  target_coord[2];
-    uint8_t target_valid;
+    int8_t target_valid;
 }
