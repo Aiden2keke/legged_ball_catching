@@ -245,7 +245,7 @@ class RCControllerProfile(CommandProfile):
         if target_valid:
             self.last_valid_st_tgt = shuttlecock_target
             print(f"update tgt:({self.last_valid_st_tgt[0]:.2f}, {self.last_valid_st_tgt[1]:.2f})")
-        if self.move_active and self.last_valid_st_tgt is not None:
+        if self.move_active and self.last_valid_st_tgt is not None and target_valid == 1:
             vec_world = self.last_valid_st_tgt - dog_coord[0:2]
             dist = float(np.linalg.norm(vec_world))
             self.remaining_time = float(dist / max(self.max_speed, 1e-3))
