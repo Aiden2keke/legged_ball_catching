@@ -115,8 +115,10 @@ def load_policy(logdir):
     actor = actor.to('cpu')
     actor.eval()
 
-    proprio_encoder = MLPEncoder(input_dim=5*46)
-    proprio_encoder.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/proprio_encoder/proprio_oracle10-9000.pth'))
+    # proprio_encoder = MLPEncoder(input_dim=5*46)
+    # history 中去掉 command_input
+    proprio_encoder = MLPEncoder(input_dim=5*(46-3))
+    proprio_encoder.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/proprio_encoder/proprio_oracle2-0-16500.pth'))
     proprio_encoder = proprio_encoder.to('cpu')
     proprio_encoder.eval()
         
