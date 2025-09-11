@@ -2,7 +2,7 @@ import os
 import torch
 
 # 可配置的变量
-run_name     = "5"
+run_name     = "11"
 # model_iters  = [5000, 6000, 7500, 10000, 13000, 15000, 20000, 25000, 30000]  # 多个 checkpoint 步数
 model_iters  = [9000, 11500, 16500]
 base_log_dir = "/home/yd/program/legged_ball_catching/legged_gym/logs/rough_go2"

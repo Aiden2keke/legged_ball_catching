@@ -81,7 +81,7 @@ class ActorCritic(nn.Module):
         mlp_input_dim_a = num_actor_obs + encoder_latent_dim
         mlp_input_dim_c = num_critic_obs + encoder_latent_dim
         # Proprioceptive Encoder
-        self.proprioceptive_encoder = Encoder(input_dim=num_actor_obs*obs_history_length, hidden_dims=encoder_hidden_dims,
+        self.proprioceptive_encoder = Encoder(input_dim=(num_actor_obs-3)*obs_history_length, hidden_dims=encoder_hidden_dims,
                                                     latent_dim=encoder_latent_dim, activation="elu")
         # Privileged Encoder
         self.privileged_encoder = Encoder(input_dim=num_critic_obs, hidden_dims=encoder_hidden_dims,

@@ -396,11 +396,12 @@ class LeggedRobot(BaseTask):
         self.proprioceptive_obs_buf = torch.cat((  # self.base_lin_vel * self.obs_scales.lin_vel, # 0:3 线速度 (vx,vy,vz)
                                     self.base_ang_vel * self.obs_scales.ang_vel, # 3:6 角速度 (ωx,ωy,ωz)
                                     self.projected_gravity, # 6:9 重力投影
-                                    self.commands[:, :3], # 9:12 即相对位置误差 （x,y）＋朝向误差
+                                    # self.commands[:, :3], # 9:12 即相对位置误差 （x,y）＋朝向误差
                                     self.timer_left.unsqueeze(1) / self.max_episode_length_s,  # 12:13 归一化后的剩余时间比例
                                     (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos, # 13:25 各关节位置偏差
                                     self.dof_vel * self.obs_scales.dof_vel, # 25:37 各关节速度
-                                    self.actions # 37:49 上一步动作
+                                    self.actions, # 37:49 上一步动作
+                                    self.commands[:, :3]
                                     ),dim=-1)
         return self.proprioceptive_obs_buf
 
@@ -444,7 +445,7 @@ class LeggedRobot(BaseTask):
             # print("last_dof_vel shape:", self.last_dof_vel.shape)
             # print("contact_forces shape:", self.contact_forces[:, self.feet_indices, :].reshape(self.num_envs, -1).shape)
         # left (far recent) to right (close recent)
-        self.obs_history_buf = torch.cat((self.obs_history_buf[:, self.obs_buf.shape[1]:], self.obs_buf), dim=1) 
+        self.obs_history_buf = torch.cat((self.obs_history_buf[:, self.obs_buf.shape[1] - 3:], self.obs_buf[:, :43]), dim=1)
 
     def create_sim(self):
         """ Creates simulation, terrain and evironments
@@ -761,11 +762,13 @@ class LeggedRobot(BaseTask):
         """
         # If the tracking reward is above 80% of the maximum, increase the range of commands
         if torch.mean(self.episode_sums["tracking_position"][env_ids]) / self.max_episode_length > 0.85 * self.reward_scales["tracking_position"]:
-            self.command_ranges["pos_1"][0] = np.clip(self.command_ranges["pos_1"][0] - 0.1, self.cfg.commands.min_pos_1, 0.)
-            self.command_ranges["pos_1"][1] = np.clip(self.command_ranges["pos_1"][1] + 0.1, 0., self.cfg.commands.max_pos_1)
+        # if torch.mean(self.episode_sums["tracking_lin_vel"][env_ids]) / self.max_episode_length > 0.85 * self.reward_scales["tracking_lin_vel"]:
+            self.command_ranges["pos_1"][0] = np.clip(self.command_ranges["pos_1"][0] - 0.2, self.cfg.commands.min_pos_1, 0.)
+            self.command_ranges["pos_1"][1] = np.clip(self.command_ranges["pos_1"][1] + 0.2, 0., self.cfg.commands.max_pos_1)
         if torch.mean(self.episode_sums["tracking_yaw"][env_ids]) / self.max_episode_length > 0.9 * self.reward_scales["tracking_yaw"]:
-            self.command_ranges["pos_2"][0] = np.clip(self.command_ranges["pos_2"][0] - 0.1, self.cfg.commands.min_pos_2, 0.)
-            self.command_ranges["pos_2"][1] = np.clip(self.command_ranges["pos_2"][1] + 0.1, 0., self.cfg.commands.max_pos_2)
+        # if torch.mean(self.episode_sums["tracking_ang_vel"][env_ids]) / self.max_episode_length > 0.9 * self.reward_scales["tracking_ang_vel"]:
+            self.command_ranges["pos_2"][0] = np.clip(self.command_ranges["pos_2"][0] - 0.2, self.cfg.commands.min_pos_2, 0.)
+            self.command_ranges["pos_2"][1] = np.clip(self.command_ranges["pos_2"][1] + 0.2, 0., self.cfg.commands.max_pos_2)
 
     def _get_noise_scale_vec(self, cfg):
         """ Sets a vector used to scale the noise added to the observations.
@@ -852,7 +855,7 @@ class LeggedRobot(BaseTask):
             self.height_points = self._init_height_points()
         self.measured_heights = 0
 
-        self.obs_history_buf = torch.zeros(self.num_envs, self.cfg.env.obs_history_length * self.obs_buf.shape[-1], dtype=torch.float, device=self.device)
+        self.obs_history_buf = torch.zeros(self.num_envs, self.cfg.env.obs_history_length * (self.obs_buf.shape[-1] - 3), dtype=torch.float, device=self.device)
         self.Kp_factors = torch.ones(
             self.num_envs,
             self.num_dof,

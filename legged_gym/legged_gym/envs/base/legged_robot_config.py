@@ -85,9 +85,9 @@ class LeggedRobotCfg(BaseConfig):
         num_commands = 3 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10. # time before command are changed[s]
         heading_command = True # if true: compute ang vel command from heading error
-        max_speed = 0.5  # 机器狗最大速度（m/s）
+        max_speed = 1.0  # 机器狗最大速度（m/s）
         landing_time_min = .0   # 最小落地时间（可选）
-        landing_time_max = 10.0   # 最大落地时间（可选）
+        landing_time_max = 7.0   # 最大落地时间（可选）
         class ranges:
             pos_1 = [-0.5, 1] # min max [m] 
             pos_2 = [-1.5, 1.5]  # rad if polar
@@ -261,7 +261,7 @@ class LeggedRobotCfg(BaseConfig):
         max_contact_force = 100.
         tracking_sigma = 0.1 # tracking reward = exp(-error^2/sigma)
         tracking_yaw_sigma = 1.0
-        tracking_pos_sigma = 0.5
+        tracking_pos_sigma = 0.1
         min_feet_distance = 0.2
         # min_dist = 0.2
         # max_dist = 0.5
