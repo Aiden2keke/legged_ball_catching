@@ -132,13 +132,13 @@ data = mujoco.MjData(model)
 # 加载 policy 和 encoder 模型
 ############################
 device = torch.device("cuda")
-run_name = "10-9000"
+run_name = "12-9000"
 actor = Actor(num_obs=46+32, num_actions=12, hidden_dims=[512, 256, 128])
 # actor.load_state_dict(torch.load(actor_dir + "/actor_oracle41-1-10000.pth"))
 actor.load_state_dict(torch.load(actor_dir + f"/actor_oracle{run_name}.pth"))
 actor = actor.to(device)
 actor.eval()
-proprio_encoder = MLPEncoder(input_dim=46*5)
+proprio_encoder = MLPEncoder(input_dim=(46-3)*5)
 # proprio_encoder.load_state_dict(torch.load(proprio_encoder_dir + "/proprio_encoder_0910_cosine_reinforce.pth"))
 proprio_encoder.load_state_dict(torch.load(proprio_encoder_dir + f"/proprio_oracle{run_name}.pth"))
 
@@ -226,7 +226,7 @@ print(
 command_scale_factor = 0.005
 listener = keyboard.Listener(on_press=on_press, on_release=on_release)
 listener.start()
-proprio_obs_history = torch.zeros((1, 46*5)).to(device)
+proprio_obs_history = torch.zeros((1, (46-3)*5)).to(device)
 
 ###########
 # 仿真主循环
@@ -313,28 +313,31 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         joint_pos = np.array(data.qpos[7:19])
         joint_vel = np.array(data.qvel[6:18])
 
+
         # proprio_observation = np.concatenate(
         #     [
+        #         # body_lin_vel * body_lin_vel_scale,
         #         body_ang_vel * body_ang_vel_scale,
         #         gravity_projection,
-        #         command_input * command_scale,
+        #         command_input,
+        #         # command_input * command_scale,
+        #         [target_time / episode_length_s],
         #         (joint_pos - default_dof_pos) * joint_pos_scale,
         #         joint_vel * joint_vel_scale,
         #         last_action,
         #     ]
-        # )
-
+        # )        
+        
+        # history 中去掉 command_input
         proprio_observation = np.concatenate(
             [
-                # body_lin_vel * body_lin_vel_scale,
                 body_ang_vel * body_ang_vel_scale,
                 gravity_projection,
-                command_input,
-                # command_input * command_scale,
                 [target_time / episode_length_s],
                 (joint_pos - default_dof_pos) * joint_pos_scale,
                 joint_vel * joint_vel_scale,
                 last_action,
+                command_input
             ]
         )
 
@@ -343,7 +346,7 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         proprio_observation += noise  # 将噪声添加到 proprio_observation# 加入噪声
 
         proprio_observation = torch.from_numpy(proprio_observation).float().to(device).unsqueeze(0) # shape (1,45)
-        proprio_obs_history = torch.cat((proprio_obs_history[:,46:], proprio_observation),dim=-1) # shape (1,675)
+        proprio_obs_history = torch.cat((proprio_obs_history[:,46-3:], proprio_observation[:,:-3]),dim=-1) # shape (1,675)
 
         #####################################
         # 将 observation 输入模型得到输出 action
