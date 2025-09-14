@@ -135,7 +135,7 @@ def get_command(body_pos, target_pos, body_quat, dt, max_speed=1.15, max_yaw_rat
         # command[0] = kp * distance
         # command[2] = kp * (heading - current_heading)
 
-        command[2] = -np.clip(kp * (heading - current_heading), -max_yaw_rate, max_yaw_rate)
+        command[2] = np.clip(kp * (heading - current_heading), -max_yaw_rate, max_yaw_rate)
     else:
         command[:] = 0.0
     return command
