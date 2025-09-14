@@ -150,6 +150,18 @@ class LCMAgent():
         self.body_angular_vel = self.se.get_body_angular_vel()
 
         # self.commands_scale = np.array([1.0, 1.0, 0.25])
+        ob = np.concatenate((#self.body_linear_vel.reshape(1, -1) * self.obs_scales["lin_vel"],
+                            self.body_angular_vel.reshape(1, -1) * self.obs_scales["ang_vel"],
+                            self.gravity_vector.reshape(1, -1),
+                            self.commands[:,0:3],
+                            [[self.remaining_time / self.episode_length_s]],
+                            (self.dof_pos - self.default_dof_pos).reshape(1, -1) * self.obs_scales["dof_pos"],
+                            self.dof_vel.reshape(1, -1) * self.obs_scales["dof_vel"],
+                            torch.clip(self.actions, -self.cfg["normalization"]["clip_actions"],
+                                        self.cfg["normalization"]["clip_actions"]).cpu().detach().numpy().reshape(1, -1)
+                             ), axis=1)
+        
+        # history 中去掉 command_input
         # ob = np.concatenate((#self.body_linear_vel.reshape(1, -1) * self.obs_scales["lin_vel"],
         #                     self.body_angular_vel.reshape(1, -1) * self.obs_scales["ang_vel"],
         #                     self.gravity_vector.reshape(1, -1),
