@@ -69,8 +69,8 @@ class OnPolicyRunner:
         self.save_interval = self.cfg["save_interval"]
 
         # init storage and model
-        # self.alg.init_storage(self.env.num_envs, self.num_steps_per_env, [self.env.num_obs], [self.env.obs_history_length * self.env.num_obs], [self.env.num_privileged_obs], [self.env.num_actions])
-        self.alg.init_storage(self.env.num_envs, self.num_steps_per_env, [self.env.num_obs], [self.env.obs_history_length * (self.env.num_obs-3)], [self.env.num_privileged_obs], [self.env.num_actions]) # remove the last 3 dimensions (x,y,yaw) of commands
+        self.alg.init_storage(self.env.num_envs, self.num_steps_per_env, [self.env.num_obs], [self.env.obs_history_length * self.env.num_obs], [self.env.num_privileged_obs], [self.env.num_actions])
+        # self.alg.init_storage(self.env.num_envs, self.num_steps_per_env, [self.env.num_obs], [self.env.obs_history_length * (self.env.num_obs- 3)], [self.env.num_privileged_obs], [self.env.num_actions]) # remove the last 3 dimensions (x,y,yaw) of commands
 
         # Log
         self.log_dir = log_dir

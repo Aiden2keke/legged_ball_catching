@@ -261,18 +261,24 @@ class RCControllerProfile(CommandProfile):
                 # dy_world = self.target_pos[1] - dog_coord[1]  # y position command
                 tmp_vec_in_frame_dog = self.T_world_to_dog@np.array([dx_world, dy_world, 0, 0])
                 yaw_diff = np.arctan2(tmp_vec_in_frame_dog[1], tmp_vec_in_frame_dog[0])
-                if abs(yaw_diff) > max_yaw_rad:
-                    sign = 1 if yaw_diff > 0 else -1
-                    aux_x = tangent_aux_dist * np.cos(sign * aux_rad)
-                    aux_y = tangent_aux_dist * np.sin(sign * aux_rad)
-                    cmd[0] = aux_x
-                    cmd[1] = aux_y
-                    cmd[2] = np.clip(sign * aux_rad, -0.3, 0.3) # 17.2deg
-                else:
-                    cmd[0] = tmp_vec_in_frame_dog[0]
-                    cmd[1] = tmp_vec_in_frame_dog[1]
-                    cmd[2] = np.clip(yaw_diff, -0.3, 0.3)
-                
+                # if abs(yaw_diff) > max_yaw_rad:
+                #     sign = 1 if yaw_diff > 0 else -1
+                #     aux_x = tangent_aux_dist * np.cos(sign * aux_rad)
+                #     aux_y = tangent_aux_dist * np.sin(sign * aux_rad)
+                #     cmd[0] = aux_x
+                #     cmd[1] = aux_y
+                #     cmd[2] = np.clip(sign * aux_rad, -0.3, 0.3) # 17.2deg
+                # else:
+                #     cmd[0] = tmp_vec_in_frame_dog[0]
+                #     cmd[1] = tmp_vec_in_frame_dog[1]
+                #     cmd[2] = np.clip(yaw_diff, -0.3, 0.3)
+
+                # baseline
+                kp = 2.0
+                cmd[0] = tmp_vec_in_frame_dog[0] * kp
+                cmd[1] = tmp_vec_in_frame_dog[1] * kp
+                cmd[2] = np.clip(kp * yaw_diff, -0.5, 0.5)
+
                 print(f"World_v:({dx_world:.2f}, {dy_world:.2f}), cmd_actual:({cmd[0]:.2f},{cmd[1]:.2f},{cmd[2]/np.pi*180:.2f}deg), time:{self.remaining_time*1e3:.2f}ms")
                 self.state_estimator.publish_dog_target(self.target_pos, cmd[0:2])
 

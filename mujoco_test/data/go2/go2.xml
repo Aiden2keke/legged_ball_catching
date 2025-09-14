@@ -39,7 +39,7 @@
     <material name="metal" rgba=".9 .95 .95 1" />
     <material name="black" rgba="0 0 0 1" />
     <material name="white" rgba="1 1 1 1" />
-    <material name="gray" rgba="0.671705 0.692426 0.774270 1" />
+    <material name="gray" rgba="0.671705 0.692426 0.774270 0.5" />
     <!-- <material name="light_gray" rgba="0.7 0.7 0.7 1" density="100"/> -->
     <mesh file="base_0.obj" />
     <mesh file="base_1.obj" />
@@ -73,15 +73,15 @@
       <geom size="0.047" pos="0.293 0 -0.06" class="collision" />
       <site name="imu" pos="-0.02557 0 0.04232" />
 
-      <!-- <body name="box_back" pos="0 0.0 0.12">
+      <body name="box_back" pos="0 0.0 0.05">
 
-        <geom name="box_base" type="box" size="0.15 0.15 0.001" pos="0 0 0.0" mass="0.01" material="gray"/>
-        <geom name="box_side1" type="box" size="0.001 0.15 0.1" pos="0.15 0 0.1" mass="0.01" material="gray"/>
-        <geom name="box_side2" type="box" size="0.001 0.15 0.1" pos="-0.15 0 0.1" mass="0.01" material="gray"/>
-        <geom name="box_side3" type="box" size="0.15 0.001 0.1" pos="0 0.15 0.1" mass="0.01" material="gray"/>
-        <geom name="box_side4" type="box" size="0.15 0.001 0.1" pos="0 -0.15 0.1" mass="0.01" material="gray"/>
+        <geom name="box_base" type="box" size="0.11 0.14 0.001" pos="0 0 0.0" mass="0.01" material="gray"/>
+        <geom name="box_side1" type="box" size="0.001 0.14 0.045" pos="0.11 0 0.045" mass="0.01" material="gray"/>
+        <geom name="box_side2" type="box" size="0.001 0.14 0.045" pos="-0.11 0 0.045" mass="0.01" material="gray"/>
+        <geom name="box_side3" type="box" size="0.11 0.001 0.045" pos="0 0.14 0.045" mass="0.01" material="gray"/>
+        <geom name="box_side4" type="box" size="0.11 0.001 0.045" pos="0 -0.14 0.045" mass="0.01" material="gray"/>
 
-      </body> -->
+      </body>
       <!-- <geom name="box_base" type="box" size="0.3 0.3 0.002" pos="0 0 0.0" mass="0.01" material="gray"/>
   <geom name="box_side1" type="box" size="0.002 0.3 0.2" pos="0.3 0 0.2" mass="0.01" material="gray"/>
   <geom name="box_side2" type="box" size="0.002 0.3 0.2" pos="-0.3 0 0.2" mass="0.01" material="gray"/>
