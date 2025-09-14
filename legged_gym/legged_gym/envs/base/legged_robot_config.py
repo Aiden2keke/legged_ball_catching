@@ -214,7 +214,7 @@ class LeggedRobotCfg(BaseConfig):
 
             ##### ABS #####
             # reach_pos_target_soft = 60.0
-            # reach_pos_target_tight = 30.0
+            reach_pos_target_tight = 30.0
             # reach_heading_target = 30.0
             # reach_pos_target_times_heading = 2.0
             # velo_dir = 10.0

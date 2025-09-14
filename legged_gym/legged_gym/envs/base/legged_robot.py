@@ -445,7 +445,8 @@ class LeggedRobot(BaseTask):
             # print("last_dof_vel shape:", self.last_dof_vel.shape)
             # print("contact_forces shape:", self.contact_forces[:, self.feet_indices, :].reshape(self.num_envs, -1).shape)
         # left (far recent) to right (close recent)
-        self.obs_history_buf = torch.cat((self.obs_history_buf[:, self.obs_buf.shape[1] - 3:], self.obs_buf[:, :43]), dim=1)
+        self.obs_history_buf = torch.cat((self.obs_history_buf[:, self.obs_buf.shape[1]:], self.obs_buf), dim=1) 
+        # self.obs_history_buf = torch.cat((self.obs_history_buf[:, self.obs_buf.shape[1] - 3:], self.obs_buf[:, :43]), dim=1)
 
     def create_sim(self):
         """ Creates simulation, terrain and evironments
@@ -855,7 +856,8 @@ class LeggedRobot(BaseTask):
             self.height_points = self._init_height_points()
         self.measured_heights = 0
 
-        self.obs_history_buf = torch.zeros(self.num_envs, self.cfg.env.obs_history_length * (self.obs_buf.shape[-1] - 3), dtype=torch.float, device=self.device)
+        self.obs_history_buf = torch.zeros(self.num_envs, self.cfg.env.obs_history_length * self.obs_buf.shape[-1], dtype=torch.float, device=self.device)
+        # self.obs_history_buf = torch.zeros(self.num_envs, self.cfg.env.obs_history_length * (self.obs_buf.shape[-1] - 3), dtype=torch.float, device=self.device)
         self.Kp_factors = torch.ones(
             self.num_envs,
             self.num_dof,

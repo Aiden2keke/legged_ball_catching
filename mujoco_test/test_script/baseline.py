@@ -1,15 +1,17 @@
+#!/usr/bin/env python3
+
 import os
 import sys
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 unitree_mujoco_test_dir = os.path.join(current_dir, "..")
 sys.path.append(unitree_mujoco_test_dir)
-actor_dir = os.path.join(unitree_mujoco_test_dir, "model/rsl_rl_teacher_student/actor")
-proprio_encoder_dir = os.path.join(unitree_mujoco_test_dir, "model/rsl_rl_teacher_student/proprio_encoder")
+actor_dir = os.path.join(unitree_mujoco_test_dir, "model/blind_locomotion/actor")
+proprio_encoder_dir = os.path.join(unitree_mujoco_test_dir, "model/blind_locomotion/proprio_encoder")
 robot_data_dir = os.path.join(unitree_mujoco_test_dir, "data")
 
 import time
-import random
+
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import mujoco
@@ -19,10 +21,10 @@ import torch
 import torch.nn as nn
 from module.modules import Actor, MLPEncoder
 from pynput import keyboard
-import math
 import random
+import math
 
-# 逆四元数旋转函数
+
 def quat_rotate_inverse(q, v):
     # 假设 q 的形状为 (4,)，v 的形状为 (3,)
     q_w = q[0]
@@ -35,6 +37,7 @@ def quat_rotate_inverse(q, v):
     c = q_vec * (np.dot(q_vec, v) * 2.0)
 
     return a - b + c
+
 
 ##############
 # 初始化键盘监听
@@ -110,25 +113,29 @@ def f(v, theta_rad, h_r=0.25):
     x = -v * math.cos(theta_rad) * t
     return t, x
 
-def get_command(body_pos, target_pos, body_quat, dt, max_speed=1.15, max_yaw_rate=0.3):
+def get_command(body_pos, target_pos, body_quat, dt, max_speed=1.15, max_yaw_rate=0.5, kp=2.0):
     """
-    参考 command_profile.py 的 get_command 实现，返回 [vx, vy, yaw_rate]
+    纯 P 控制器：v = kp * (target_pos - body_pos)
+    返回机体坐标系下的速度指令 (vx, vy, vz)
     """
     pos_diff = target_pos - body_pos
+
     distance = np.linalg.norm(pos_diff[:2])
     heading = np.arctan2(pos_diff[1], pos_diff[0])
     fw = quat_rotate_inverse(body_quat, np.array([1, 0, 0]))
     current_heading = np.arctan2(fw[1], fw[0])
 
     command = np.zeros(3)
-    if distance > 0.1:
-        # 归一化速度方向
-        direction = quat_rotate_inverse(body_quat, pos_diff)[:2]
-        direction_norm = np.linalg.norm(direction)
-        if direction_norm > 1e-6:
-            direction = direction / direction_norm
-        command[:2] = direction * min(distance / dt, max_speed)
-        command[2] = np.clip(heading - current_heading, -max_yaw_rate, max_yaw_rate)
+    if distance > 0.05:
+        # vx, vy
+        v_world = kp * quat_rotate_inverse(body_quat, pos_diff)[:2]
+        command[:2] = v_world[:2]
+
+        # vx, yaw
+        # command[0] = kp * distance
+        # command[2] = kp * (heading - current_heading)
+
+        command[2] = -np.clip(kp * (heading - current_heading), -max_yaw_rate, max_yaw_rate)
     else:
         command[:] = 0.0
     return command
@@ -136,7 +143,6 @@ def get_command(body_pos, target_pos, body_quat, dt, max_speed=1.15, max_yaw_rat
 ##############
 # 加载机器人模型
 ##############
-# 加载机器人模型
 model = mujoco.MjModel.from_xml_path(robot_data_dir + "/go2/scene_terrain.xml")
 data = mujoco.MjData(model)
 
@@ -144,15 +150,14 @@ data = mujoco.MjData(model)
 # 加载 policy 和 encoder 模型
 ############################
 device = torch.device("cuda")
-run_name = "11-9000"
-actor = Actor(num_obs=46+32, num_actions=12, hidden_dims=[512, 256, 128])
-# actor.load_state_dict(torch.load(actor_dir + "/actor_oracle41-1-10000.pth"))
-actor.load_state_dict(torch.load(actor_dir + f"/actor_oracle{run_name}.pth"))
+actor = Actor(num_obs=77, num_actions=12, hidden_dims=[512, 256, 128])
+# actor.load_state_dict(torch.load(actor_dir + "/actor_baseline.pth"))
+actor.load_state_dict(torch.load(actor_dir + "/actor_oraclebl-9000.pth"))
 actor = actor.to(device)
 actor.eval()
-proprio_encoder = MLPEncoder(input_dim=46*5)
-# proprio_encoder.load_state_dict(torch.load(proprio_encoder_dir + "/proprio_encoder_0910_cosine_reinforce.pth"))
-proprio_encoder.load_state_dict(torch.load(proprio_encoder_dir + f"/proprio_oracle{run_name}.pth"))
+proprio_encoder = MLPEncoder(input_dim=45*15)
+# proprio_encoder.load_state_dict(torch.load(proprio_encoder_dir + "/proprio_baseline.pth"))
+proprio_encoder.load_state_dict(torch.load(proprio_encoder_dir + "/proprio_oraclebl-9000.pth"))
 proprio_encoder = proprio_encoder.to(device)
 proprio_encoder.eval()
 
@@ -225,9 +230,6 @@ body_ang_vel_scale = 0.25
 command_scale = np.array([2.0, 2.0, 0.25])
 joint_vel_scale = 0.05
 joint_pos_scale = 1.0
-episode_length_s = 20
-# arget_active = False
-# timer_active = False
 
 ##############
 # 关节状态初始化
@@ -239,14 +241,12 @@ data.qpos[7:19] = default_dof_pos
 #########################
 command = np.array([0.0, 0.0, 0.0])
 prev_command = np.array([0.0, 0.0, 0.0])
-print(
-    "Press 'space' to throw the ball.\n",
-)
+
 # 监听键盘输入
 command_scale_factor = 0.005
 listener = keyboard.Listener(on_press=on_press, on_release=on_release)
 listener.start()
-proprio_obs_history = torch.zeros((1, 46*5)).to(device)
+proprio_obs_history = torch.zeros((1, 45*15)).to(device)
 
 ###########
 # 仿真主循环
@@ -303,7 +303,7 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
             target_time, target_pos_x =f(v, theta_rad, base_height)
             target_pos = throw_ball + np.array([0.0, target_pos_x, base_height])
             ball_thrown = False
-            # find agility extreme
+                        # find agility extreme
             pos_diff = target_pos - body_pos
             distance = np.linalg.norm(pos_diff[:2])
             heading = quat_rotate_inverse(body_quat, pos_diff)
@@ -326,31 +326,14 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
 
         # deploy的command法
         command = get_command(body_pos, target_pos, body_quat, dt)
-        # # 本意
-        # pos_diff = target_pos - body_pos
-        # # print("pos_diff:", pos_diff)
-        # distance = np.linalg.norm(pos_diff[:2])
-        # # print("distance:", distance)
-        
-        # heading = np.arctan2(pos_diff[1], pos_diff[0])
-        # # 当前朝向
-        # fw = quat_rotate_inverse(body_quat, np.array([1, 0, 0]))
-        # current_heading = np.arctan2(fw[1], fw[0])
-        # if distance > 0.1:
-        #     command[:2] = quat_rotate_inverse(body_quat, pos_diff)[:2]
-        #     command[2] = np.clip(heading - current_heading, -0.3, 0.3)
-        #     target_time -= dt
-        # else:
-        #     command[:2] = [0.0, 0.0]
-        #     command[2] = 0.0
-        #     target_time = 0.0
+
 
         ############
         # 更新模型输入
         ############
         current_time = time.time()
 
-        body_lin_vel = quat_rotate_inverse(np.array(data.qpos[3:7]), np.array(data.qvel[0:3]))
+        # body_lin_vel = quat_rotate_inverse(np.array(data.qpos[3:7]), np.array(data.qvel[0:3]))
         body_ang_vel = np.array(data.qvel[3:6])  # mujoco 中的角速度是在局部坐标系下的，所以不需要转换
         gravity_projection = quat_rotate_inverse(np.array(data.qpos[3:7]), np.array([0, 0, -1.0]))
         command_input = command
@@ -358,40 +341,23 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         joint_pos = np.array(data.qpos[7:19])
         joint_vel = np.array(data.qvel[6:18])
 
-
         proprio_observation = np.concatenate(
             [
-                # body_lin_vel * body_lin_vel_scale,
                 body_ang_vel * body_ang_vel_scale,
                 gravity_projection,
-                command_input,
-                # command_input * command_scale,
-                [target_time / episode_length_s],
+                command_input * command_scale,
                 (joint_pos - default_dof_pos) * joint_pos_scale,
                 joint_vel * joint_vel_scale,
                 last_action,
             ]
-        )        
-        
-        # # history 中去掉 command_input
-        # proprio_observation = np.concatenate(
-        #     [
-        #         body_ang_vel * body_ang_vel_scale,
-        #         gravity_projection,
-        #         [target_time / episode_length_s],
-        #         (joint_pos - default_dof_pos) * joint_pos_scale,
-        #         joint_vel * joint_vel_scale,
-        #         last_action,
-        #         command_input
-        #     ]
-        # )
+        )
 
         noise_strength = 0.02  # 噪声的强度，值越大，噪声越强
         noise = np.random.randn(*proprio_observation.shape) * noise_strength  # 生成与 proprio_observation 形状相同的噪声
         proprio_observation += noise  # 将噪声添加到 proprio_observation# 加入噪声
 
         proprio_observation = torch.from_numpy(proprio_observation).float().to(device).unsqueeze(0) # shape (1,45)
-        proprio_obs_history = torch.cat((proprio_obs_history[:,46:], proprio_observation),dim=-1) # shape (1,675)
+        proprio_obs_history = torch.cat((proprio_obs_history[:,45:], proprio_observation),dim=-1) # shape (1,675)
 
         #####################################
         # 将 observation 输入模型得到输出 action
@@ -399,7 +365,7 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         proprio_latent = proprio_encoder(proprio_obs_history)
         proprio_latent = torch.nn.functional.normalize(proprio_latent, p=2, dim=-1)
         actor_input = torch.cat((proprio_observation, proprio_latent), dim=-1)
-
+        
         action = actor(actor_input)
         action = action.detach().cpu().numpy()
         action = np.clip(action, -6.0, 6.0)
@@ -425,13 +391,33 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         # 实时输出command命令
         ###################
         if not np.array_equal(command, prev_command):
-            # print("target_pos:", target_pos)
-            # print("body_pos:", body_pos)
-            # print("command:", command)
-            # print("target_time:", target_time)
+            # print(
+            #     "Use arrow keys to move the robot.\n",
+            #     "'l': turn left\n",
+            #     "'r': turn left\n",
+            #     "UP: move forward,\n",
+            #     "DOWN: move backward,\n",
+            #     "LEFT: move left,\n" "RIGHT: move right.\n",
+            # )
+            # print(
+            #     "x_velocity: {:.2f},\ny_velocity: {:.2f},\nangular_velocity: {:.2f}\n".format(
+            #         command[0], command[1], command[2]
+            #     )
+            # )
             prev_command = command.copy()
 
         with viewer.lock():
+            body_pos = np.array(data.qpos[0:3])
+            desired_lookat = body_pos.copy()
+            desired_lookat[2] += 0.2  # 把相机焦点抬高一点，避免贴地
+
+    # # 直接设置（最直接，但可能会比较抖）
+    #         viewer.cam.lookat = desired_lookat.tolist()
+
+    # # 可同时调整距离 / 视角
+    #         viewer.cam.distance = 5.0   # 拉远或拉近第三人称视角
+    #         viewer.cam.azimuth = 50    # 水平旋转角度
+    #         viewer.cam.elevation = -20  # 垂直视角
             viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = 2
             # viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = 1
         viewer.sync()
@@ -454,3 +440,13 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
             sphere_rgba
         )
         viewer.user_scn.ngeom += 1 # 增加自定义几何体计数
+# # 进入你的 Conda 环境 lib 目录
+# cd ~/anaconda3/envs/rlgpu/lib
+
+# # 备份原有 libstdc++
+# mkdir backup && mv libstdc*.so* backup/
+
+# # 复制系统版本并创建软链接
+# cp /usr/lib/x86_64-linux-gnu/libstdc++.so.6 .
+# ln -s libstdc++.so.6 libstdc++.so
+# ln -s libstdc++.so.6 libstdc++.so.6.0.19
