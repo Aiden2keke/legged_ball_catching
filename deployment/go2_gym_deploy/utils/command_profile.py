@@ -96,54 +96,6 @@ class ElegantGaitProfile(CommandProfile):
         self.commands[:len_command_sequence, 7] = torch.Tensor(command_sequence["bound_cmd"])
         self.commands[:len_command_sequence, 8] = torch.Tensor(command_sequence["duration_cmd"])
 
-# class RCControllerProfile(CommandProfile):
-#     def __init__(self, dt, state_estimator, x_scale=1.0, y_scale=1.0, yaw_scale=1.0, probe_vel_multiplier=1.0):
-#         super().__init__(dt)
-#         self.state_estimator = state_estimator
-#         self.x_scale = x_scale
-#         self.y_scale = y_scale
-#         self.yaw_scale = yaw_scale
-
-#         self.probe_vel_multiplier = probe_vel_multiplier
-
-#         self.triggered_commands = {i: None for i in range(4)}  # command profiles for each action button on the controller
-#         self.currently_triggered = [0, 0, 0, 0]
-#         self.button_states = [0, 0, 0, 0]
-
-#     def get_command(self, t, probe=False):
-
-#         command = self.state_estimator.get_command()
-#         command[0] = command[0] * self.x_scale
-#         command[1] = command[1] * self.y_scale
-#         command[2] = command[2] * self.yaw_scale
-
-#         reset_timer = False
-
-#         if probe:
-#             command[0] = command[0] * self.probe_vel_multiplier
-#             command[2] = command[2] * self.probe_vel_multiplier
-
-#         # check for action buttons
-#         prev_button_states = self.button_states[:]
-#         self.button_states = self.state_estimator.get_buttons()
-#         for button in range(4):
-#             if self.triggered_commands[button] is not None:
-#                 if self.button_states[button] == 1 and prev_button_states[button] == 0:
-#                     if not self.currently_triggered[button]:
-#                         # reset the triggered action
-#                         self.triggered_commands[button].reset(t)
-#                         # reset the internal timing variable
-#                         reset_timer = True
-#                         self.currently_triggered[button] = True
-#                     else:
-#                         self.currently_triggered[button] = False
-#                 # execute the triggered action
-#                 if self.currently_triggered[button] and t < self.triggered_commands[button].max_timestep:
-#                     command = self.triggered_commands[button].get_command(t)
-
-
-#         return command, reset_timer
-
 def wrap_to_pi(x):
     return (x + math.pi) % (2 * math.pi) - math.pi
 
@@ -151,8 +103,8 @@ class RCControllerProfile(CommandProfile):
     def __init__(self, dt, state_estimator, x_scale=1.0, y_scale=1.0, yaw_scale=1.0,
                  max_speed=0.5, max_yaw_rate=0.6/2, joystick_meter_per_second=1.5):
         """
-        joystick_meter_per_second: 当摇杆满偏 (1.0) 时，target_pos 每秒移动多少米（用于用摇杆移动 target_pos）
-        max_speed: 机器人匀速上限（m/s），用于计算 target_time = dist / max_speed
+        joystick_meter_per_second: When the joystick is fully deflected (1.0), target_pos moves in meters per second (for moving target_pos with the joystick)
+        max_speed: The upper limit of the robot's uniform speed (m/s), used to calculate target_time = dist / max_speed
         """
         super().__init__(dt)
         self.state_estimator = state_estimator
@@ -176,21 +128,21 @@ class RCControllerProfile(CommandProfile):
         self.max_yaw_rate = float(max_yaw_rate)
         self.joystick_meter_per_second = float(joystick_meter_per_second)
         # which button index corresponds to R2? (you must confirm this mapping in cheetah_state_estimator)
-        self.R1_BUTTON_IDX = 3  # <-- **请根据你的 cheetah_state_estimator.py 对应映射修改此值**
+        self.R1_BUTTON_IDX = 3
 
     def get_command(self, t, probe=False):
         """
-        返回 command: numpy array shape (9,) or at least length>=3 where first 3 are vx,vy,yaw_rate (unit: m/s, rad/s)
-        Behavior:
-         - 摇杆移动：更新 self.target_pos（x,y）
-         - 未按 R2：返回零速度
-         - 按 R2（升沿）：计算 remaining_time = distance / max_speed 并开始移动
-         - 移动中：根据 remaining_time 生成线速度和角速度，remaining_time -= self.dt
-         - 到达：停止移动
+        Returns command: numpy array shape (9,) or at least length >= 3 where the first 3 are vx, vy, yaw_rate (unit: m/s, rad/s)
+            Behavior:
+            - Joystick movement: Update self.target_pos (x, y)
+            - R2 not pressed: Return to zero velocity
+            - R2 pressed (rising edge): Calculate remaining_time = distance / max_speed and start moving
+            - While moving: Generate linear and angular velocities based on remaining_time, remaining_time -= self.dt
+            - Arrival: Stop moving
         """
         reset_timer = False
         # read raw joystick "command" (legacy usage): assume it returns array-like [axis_x, axis_y, yaw_axis]
-        raw_cmd = np.array(self.state_estimator.get_command())  # e.g. [-1..1] or velocities depending on estimator
+        raw_cmd = np.array(self.state_estimator.get_command())
         # read buttons
         prev_button_states = self.button_states[:]
         self.button_states = self.state_estimator.get_buttons()
@@ -213,7 +165,6 @@ class RCControllerProfile(CommandProfile):
             # note: assume joystick axes are in robot body frame; if they are world-frame you'd need transform
             self.target_pos[0] += dx
             self.target_pos[1] += dy
-            # print(f"{raw_cmd[0]:.2f},{raw_cmd[1]:.2f},{raw_cmd[2]:.2f}")
             if not self.move_active:
                 # print(f"target:{self.target_pos[0]:.2f},{self.target_pos[1]:.2f}")
                 # print(f"currpos:{dog_coord[0]:.2f},{dog_coord[1]:.2f}")
@@ -256,28 +207,26 @@ class RCControllerProfile(CommandProfile):
                 cmd[2] = 0.0
             else:
                 dx_world = self.last_valid_st_tgt[0] - dog_coord[0] # x position command
-                # dx_world = self.target_pos[0] - dog_coord[0] # x position command
                 dy_world = self.last_valid_st_tgt[1] - dog_coord[1]  # y position command
-                # dy_world = self.target_pos[1] - dog_coord[1]  # y position command
                 tmp_vec_in_frame_dog = self.T_world_to_dog@np.array([dx_world, dy_world, 0, 0])
                 yaw_diff = np.arctan2(tmp_vec_in_frame_dog[1], tmp_vec_in_frame_dog[0])
-                # if abs(yaw_diff) > max_yaw_rad:
-                #     sign = 1 if yaw_diff > 0 else -1
-                #     aux_x = tangent_aux_dist * np.cos(sign * aux_rad)
-                #     aux_y = tangent_aux_dist * np.sin(sign * aux_rad)
-                #     cmd[0] = aux_x
-                #     cmd[1] = aux_y
-                #     cmd[2] = np.clip(sign * aux_rad, -0.3, 0.3) # 17.2deg
-                # else:
-                #     cmd[0] = tmp_vec_in_frame_dog[0]
-                #     cmd[1] = tmp_vec_in_frame_dog[1]
-                #     cmd[2] = np.clip(yaw_diff, -0.3, 0.3)
+                if abs(yaw_diff) > max_yaw_rad:
+                    sign = 1 if yaw_diff > 0 else -1
+                    aux_x = tangent_aux_dist * np.cos(sign * aux_rad)
+                    aux_y = tangent_aux_dist * np.sin(sign * aux_rad)
+                    cmd[0] = aux_x
+                    cmd[1] = aux_y
+                    cmd[2] = np.clip(sign * aux_rad, -0.3, 0.3) # 17.2deg
+                else:
+                    cmd[0] = tmp_vec_in_frame_dog[0]
+                    cmd[1] = tmp_vec_in_frame_dog[1]
+                    cmd[2] = np.clip(yaw_diff, -0.3, 0.3)
 
-                # baseline
-                kp = 2.0
-                cmd[0] = tmp_vec_in_frame_dog[0] * kp
-                cmd[1] = tmp_vec_in_frame_dog[1] * kp
-                cmd[2] = np.clip(kp * yaw_diff, -0.5, 0.5)
+                # # baseline
+                # kp = 2.0
+                # cmd[0] = tmp_vec_in_frame_dog[0] * kp
+                # cmd[1] = tmp_vec_in_frame_dog[1] * kp
+                # cmd[2] = np.clip(kp * yaw_diff, -0.5, 0.5)
 
                 print(f"World_v:({dx_world:.2f}, {dy_world:.2f}), cmd_actual:({cmd[0]:.2f},{cmd[1]:.2f},{cmd[2]/np.pi*180:.2f}deg), time:{self.remaining_time*1e3:.2f}ms")
                 self.state_estimator.publish_dog_target(self.target_pos, cmd[0:2])
@@ -303,20 +252,9 @@ class RCControllerProfile(CommandProfile):
 class RCControllerProfileAccel(RCControllerProfile):
     def __init__(self, dt, state_estimator, x_scale=1.0, y_scale=1.0, yaw_scale=1.0):
         super().__init__(dt, state_estimator, x_scale=x_scale, y_scale=y_scale, yaw_scale=yaw_scale)
-        # self.x_scale, self.y_scale, self.yaw_scale = self.x_scale / 100., self.y_scale / 100., self.yaw_scale / 100.
-        # self.velocity_command = torch.zeros(3)
-        
-        # 将速度指令改为位置指令
         self.position_command = torch.zeros(3)
 
     def get_command(self, t):
-
-        # accel_command = self.state_estimator.get_command()
-        # self.velocity_command[0] = self.velocity_command[0]  + accel_command[0] * self.x_scale
-        # self.velocity_command[1] = self.velocity_command[1]  + accel_command[1] * self.y_scale
-        # self.velocity_command[2] = self.velocity_command[2]  + accel_command[2] * self.yaw_scale
-
-        # 将速度指令改为位置指令
         pos_command = self.state_estimator.get_command()
         self.position_command[0] = pos_command[0] * self.x_scale
         self.position_command[1] = pos_command[1] * self.y_scale
@@ -340,10 +278,6 @@ class RCControllerProfileAccel(RCControllerProfile):
 
     def get_buttons(self):
         return self.state_estimator.get_buttons()
-
-
-
-
 
 class KeyboardProfile(CommandProfile):
     # for control via keyboard inputs to isaac gym visualizer

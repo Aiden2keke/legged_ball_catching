@@ -34,8 +34,7 @@ import numpy as np
 class LeggedRobotCfg(BaseConfig):
     class env:
         num_envs = 4096
-        num_observations = 49 - 3
-        # num_privileged_obs = 49 + 3 + 187 + 63 + 12 + 12 + 12 # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
+        num_observations = 46
         num_privileged_obs = 46 + 3 + 63 + 12 + 12 + 12 # plane, no height 
         num_privileged_latent = 32
         num_actions = 12
@@ -47,7 +46,6 @@ class LeggedRobotCfg(BaseConfig):
 
     class terrain:
         mesh_type = 'plane'
-        # mesh_type = 'trimesh' # "heightfield" # none, plane, heightfield or trimesh
         horizontal_scale = 0.1 # [m]
         vertical_scale = 0.005 # [m]
         border_size = 25 # [m]
@@ -78,10 +76,6 @@ class LeggedRobotCfg(BaseConfig):
         max_pos_1 = 7.5
         min_pos_2 = -np.pi
         max_pos_2 = np.pi
-        # min_pos_1 = -5
-        # max_pos_1 = 5
-        # min_pos_2 = -5
-        # max_pos_2 = 5
         num_commands = 3 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
         resampling_time = 10. # time before command are changed[s]
         heading_command = True # if true: compute ang vel command from heading error
@@ -94,11 +88,10 @@ class LeggedRobotCfg(BaseConfig):
             heading = [-0.3, 0.3]  # a residual heading plus theta
             use_polar = True
 
-            # pos_1 = [-1, 1] # min max [m] 
-            # pos_2 = [-1, 1]  # rad if polar
+            # pos_1 = [-1, 1] # x 
+            # pos_2 = [-1, 1]  # y
             # heading = [-0.3, 0.3]  # a residual heading plus theta
             # use_polar = False
-
 
     class init_state:
         pos = [0.0, 0.0, 1.] # x,y,z [m]
@@ -192,12 +185,12 @@ class LeggedRobotCfg(BaseConfig):
     class rewards:
         class scales:
             termination = -0. ## = task
-            tracking_lin_vel = 1.0 # We should not use it in position control
-            tracking_ang_vel = 0.5 # We should not use it in position control
+            tracking_lin_vel = 1.0
+            tracking_ang_vel = 0.5
             tracking_position = 1.0 # So we use this one
             tracking_yaw = 0.5
-            torques = -0.0005 #check go2_config.py !!!!
-            dof_pos_limits = -20.0 #check go2_config.py !!!!
+            torques = -0.0005 # check go2_config.py !!!!
+            dof_pos_limits = -20.0 # check go2_config.py !!!!
             dof_vel = -0.0005 * 3
             lin_vel_z = -2.0
             ang_vel_xy = -0.05
@@ -211,45 +204,20 @@ class LeggedRobotCfg(BaseConfig):
             collision = -1.
             action_smoothness = -0.001 * 2
             power = -2e-4
-
             ##### ABS #####
-            # reach_pos_target_soft = 60.0
             reach_pos_target_tight = 30.0
-            # reach_heading_target = 30.0
-            # reach_pos_target_times_heading = 2.0
-            # velo_dir = 10.0
-            # torque_limits = -20.0
-            # dof_vel_limits = -20.0
-            # nomove = -20.0
-
-            # ##### another #####
-            # feet_distance = 0
-            # knee_distance = 0.2
-            # velo_lim = -0
-
             ##### Advanced Skills by Learning Locomotion and Local Navigation End-to-End #####
             task = 100 # = termination
             feet_acceleration = -1e-9
             exploration = 1
             stalling_penalty = 1
-
-            ##### Extreme Parkour with Legged Robots #####
-            # hip_pos = -0.5
-            # dof_error = -0.04
-
             # ##### ANYmal-Parkour #####
             stop_yaw_vel = -0.1
-
-            ##### Motion Priors Reimagined: Adapting Flat-Terrain Skills for Complex Quadruped Mobility #####
-            # velocity = 1.0
-
             ##### wf_skill_planning #####
             feet_height = -1.0 * 2
 
-            # base_acc = 1.0
-
-        soft_dof_pos_limit = 0.95 #check go2_config.py !!!!
-        base_height_target = 0.25 #check go2_config.py !!!!
+        soft_dof_pos_limit = 0.95 # check go2_config.py !!!!
+        base_height_target = 0.25 # check go2_config.py !!!!
         only_positive_rewards = False
         position_target_sigma = 0.5
         position_target_sigma_soft = 2.0
@@ -262,12 +230,8 @@ class LeggedRobotCfg(BaseConfig):
         tracking_sigma = 0.1 # tracking reward = exp(-error^2/sigma)
         tracking_yaw_sigma = 1.0
         tracking_pos_sigma = 0.1
-        min_feet_distance = 0.2
-        # min_dist = 0.2
-        # max_dist = 0.5
         velocity_target_sigma_tight = 0.4
         target_feet_height = 0.1
-        cycle_time = 0.64 #what is this?
         feet_height_sigma = 0.01
 
     class normalization:

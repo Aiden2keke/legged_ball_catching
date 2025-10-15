@@ -54,7 +54,7 @@ class MLPEncoder(nn.Module):
         return self.encoder(x)
 
 
-# lcm多播通信的标准格式
+# Standard format for LCM multicast communication
 lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=255")
 
 def load_and_run_policy(label, experiment_name, max_vel=1.0, max_yaw_vel=1.0):
@@ -99,7 +99,6 @@ def load_and_run_policy(label, experiment_name, max_vel=1.0, max_yaw_vel=1.0):
         max_steps = int(sys.argv[1])
     else:
         max_steps = 10000000
-    # print(f'max steps {max_steps}')
 
     deployment_runner.run(max_steps=max_steps, logging=True)
 
@@ -107,22 +106,19 @@ def load_policy(logdir):
     import os
 
     # try ------------------
-    # body = torch.jit.load(logdir + '/checkpoints/body_latest.jit').to('cpu')
     global with_load_estimator
     
-    # actor = Actor(num_obs=46+32, num_actions=12)
-    actor = Actor(num_obs=45+32, num_actions=12) # baseline
-    # actor.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/actor/actor_oracle11-9000.pth'))
-    actor.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/actor/actor_oraclebl-9000.pth')) # baseline
+    actor = Actor(num_obs=46+32, num_actions=12)
+    # actor = Actor(num_obs=45+32, num_actions=12) # baseline
+    actor.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/actor/actor_oracle11-9000.pth'))
+    # actor.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/actor/actor_oraclebl-9000.pth')) # baseline
     actor = actor.to('cpu')
     actor.eval()
 
-    # proprio_encoder = MLPEncoder(input_dim=5*46)
-    proprio_encoder = MLPEncoder(input_dim=5*45) # baseline
-    # history 中去掉 command_input
-    # proprio_encoder = MLPEncoder(input_dim=5*(46-3))
-    # proprio_encoder.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/proprio_encoder/proprio_oracle11-9000.pth'))
-    proprio_encoder.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/proprio_encoder/proprio_oraclebl-9000.pth')) # baseline
+    proprio_encoder = MLPEncoder(input_dim=5*46)
+    # proprio_encoder = MLPEncoder(input_dim=15*45) # baseline
+    proprio_encoder.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/proprio_encoder/proprio_oracle11-9000.pth'))
+    # proprio_encoder.load_state_dict(torch.load('/home/unitree/program/legged_ball_catching/mujoco_test/model/rsl_rl_teacher_student/proprio_encoder/proprio_oraclebl-9000.pth')) # baseline
     proprio_encoder = proprio_encoder.to('cpu')
     proprio_encoder.eval()
         
@@ -135,10 +131,6 @@ def load_policy(logdir):
         global with_load_estimator
 
         time_step += 1
-        # obs_list.append(obs["obs"].to('cpu'))
-        # if time_step % 20 == 0:
-            # print("obs recorded")
-            # np.save("obs_list.npy", np.array(obs_list))
         
         proprio_latent = proprio_encoder(obs["obs_history"].to('cpu'))
         actor_input = torch.cat((obs["obs"].to('cpu'), torch.nn.functional.normalize(proprio_latent, p=2, dim=-1)), dim=-1)
@@ -147,8 +139,6 @@ def load_policy(logdir):
 
         if torch.max(action) > 5.5 or torch.min(action) < -5.5:
            print("======action========: ", action)        
-        # default:
-        # action = torch.clip(action, -6.7, 6.7)
         action = torch.clip(action, -8.3, 8.3)
 
         return action
@@ -157,12 +147,9 @@ def load_policy(logdir):
 
 
 if __name__ == '__main__':
-    # label = "gait-conditioned-agility/pretrain-v0/train"
     label = "gait-conditioned-agility/pretrain-go2/train"
 
     experiment_name = "example_experiment"
-    # angular_velocity_list = []
-    # body_quaternion_list = []
     obs_list = []
     time_step = 0
 

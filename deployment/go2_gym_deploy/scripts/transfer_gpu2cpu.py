@@ -9,9 +9,9 @@ logdir = sorted(dirs)[0]
 # transfer
 with open(logdir+"/parameters.pkl", 'rb') as file:
     pkl_cfg = pickle.load(file)
-    # 我们通过 torch.is_tensor(v) 检查字典中的每个值 v 是否为 PyTorch 张量。
-    # 如果是，我们应用 .cpu() 方法将其转移到 CPU；如果不是，我们保留原值。
-    # 这样，只有真正的张量会被转移，其他类型的值（如整数、字符串等）会保持不变。
+    # We check whether each value v in the dictionary is a PyTorch tensor via torch.is_tensor(v) .
+    # If it is, we apply the .cpu() method to transfer it to the CPU; if not, we keep the original value.
+    # This way, only actual tensors are transferred, and other types of values ​​(such as integers, strings, etc.) remain unchanged.
     pkl_cfg_cpu = {k: v.cpu() if torch.is_tensor(v) else v for k, v in pkl_cfg.items()}
     print("Transfer Succeed ! !")
 

@@ -12,7 +12,7 @@ from go2_gym_deploy.lcm_types.dog_in_frame_info import dog_in_frame_info
 from go2_gym_deploy.lcm_types.dog_feedback_info import dog_feedback_info
 
 from go2_gym_deploy.lcm_types.shuttlecock_target_t import shuttlecock_target_t
-# 不调用相机 !!!
+# no camera !!!
 # from go1_gym_deploy.lcm_types.camera_message_lcmt import camera_message_lcmt
 # from go1_gym_deploy.lcm_types.camera_message_rect_wide import camera_message_rect_wide
 
@@ -56,7 +56,6 @@ def get_rotation_matrix_from_rpy(rpy):
 class StateEstimator:
     def __init__(self, lc, use_cameras=False): # defaul use_cameras=True
         
-        # 这里腿的顺序为什么要转换？
         # reverse legs
         self.joint_idxs = [3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]
         self.contact_idxs = [1, 0, 3, 2]
@@ -331,7 +330,7 @@ class StateEstimator:
 
         # print(self.right_stick, self.left_stick)
 
-# 是否要删除下面的camera相关函数？
+# camera related, delete them？
 # --------------------------------------------------
     # def _camera_cb(self, channel, data):
     #     msg = camera_message_lcmt.decode(data)

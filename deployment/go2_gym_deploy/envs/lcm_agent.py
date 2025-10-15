@@ -40,8 +40,8 @@ class LCMAgent():
         self.timestep = 0
 
         # self.num_obs = self.cfg["env"]["num_observations"]
-        # self.num_obs = 46
-        self.num_obs = 45 # baseline
+        self.num_obs = 46
+        # self.num_obs = 45 # baseline
         self.num_envs = 1
         self.num_privileged_obs = self.cfg["env"]["num_privileged_obs"]
         # self.num_actions = self.cfg["env"]["num_actions"]
@@ -149,8 +149,7 @@ class LCMAgent():
         self.body_linear_vel = self.se.get_body_linear_vel()
         self.body_angular_vel = self.se.get_body_angular_vel()
 
-        # self.commands_scale = np.array([1.0, 1.0, 0.25])
-        ob = np.concatenate((#self.body_linear_vel.reshape(1, -1) * self.obs_scales["lin_vel"],
+        ob = np.concatenate((
                             self.body_angular_vel.reshape(1, -1) * self.obs_scales["ang_vel"],
                             self.gravity_vector.reshape(1, -1),
                             self.commands[:,0:3],
@@ -160,42 +159,19 @@ class LCMAgent():
                             torch.clip(self.actions, -self.cfg["normalization"]["clip_actions"],
                                         self.cfg["normalization"]["clip_actions"]).cpu().detach().numpy().reshape(1, -1)
                              ), axis=1)
-        
-        # history 中去掉 command_input
-        # ob = np.concatenate((#self.body_linear_vel.reshape(1, -1) * self.obs_scales["lin_vel"],
+
+
+        # # baseline
+        # self.commands_scale = np.array([2.0, 2.0, 0.25])
+        # ob = np.concatenate((
         #                     self.body_angular_vel.reshape(1, -1) * self.obs_scales["ang_vel"],
         #                     self.gravity_vector.reshape(1, -1),
-        #                     self.commands[:,0:3],
-        #                     [[self.remaining_time / self.episode_length_s]],
-        #                     (self.dof_pos - self.default_dof_pos).reshape(1, -1) * self.obs_scales["dof_pos"],
-        #                     self.dof_vel.reshape(1, -1) * self.obs_scales["dof_vel"],
-        #                     torch.clip(self.actions, -self.cfg["normalization"]["clip_actions"],
+        #                      self.commands[:,0:3] * self.commands_scale,
+        #                      (self.dof_pos - self.default_dof_pos).reshape(1, -1) * self.obs_scales["dof_pos"],
+        #                      self.dof_vel.reshape(1, -1) * self.obs_scales["dof_vel"],
+        #                      torch.clip(self.actions, -self.cfg["normalization"]["clip_actions"],
         #                                 self.cfg["normalization"]["clip_actions"]).cpu().detach().numpy().reshape(1, -1)
         #                      ), axis=1)
-        
-        # # history 中去掉 command_input
-        # ob = np.concatenate((#self.body_linear_vel.reshape(1, -1) * self.obs_scales["lin_vel"],
-        #                     self.body_angular_vel.reshape(1, -1) * self.obs_scales["ang_vel"],
-        #                     self.gravity_vector.reshape(1, -1),
-        #                     [[self.remaining_time / self.episode_length_s]],
-        #                     (self.dof_pos - self.default_dof_pos).reshape(1, -1) * self.obs_scales["dof_pos"],
-        #                     self.dof_vel.reshape(1, -1) * self.obs_scales["dof_vel"],
-        #                     torch.clip(self.actions, -self.cfg["normalization"]["clip_actions"],
-        #                                 self.cfg["normalization"]["clip_actions"]).cpu().detach().numpy().reshape(1, -1),
-        #                     self.commands[:,0:3]
-        #                      ), axis=1)
-
-        # baseline
-        self.commands_scale = np.array([2.0, 2.0, 0.25])
-        ob = np.concatenate((
-                            self.body_angular_vel.reshape(1, -1) * self.obs_scales["ang_vel"],
-                            self.gravity_vector.reshape(1, -1),
-                             self.commands[:,0:3] * self.commands_scale,
-                             (self.dof_pos - self.default_dof_pos).reshape(1, -1) * self.obs_scales["dof_pos"],
-                             self.dof_vel.reshape(1, -1) * self.obs_scales["dof_vel"],
-                             torch.clip(self.actions, -self.cfg["normalization"]["clip_actions"],
-                                        self.cfg["normalization"]["clip_actions"]).cpu().detach().numpy().reshape(1, -1)
-                             ), axis=1)
 
         # print("get_obs output shape:", ob.shape)
 
@@ -268,7 +244,6 @@ class LCMAgent():
 
 
         self.torques = (self.joint_pos_target - self.dof_pos) * self.p_gains + (self.joint_vel_target - self.dof_vel) * self.d_gains
-        # 由lcm将神经网络输出的action传入c++ sdk
         lc.publish("pd_plustau_targets", command_for_robot.encode())
 
     def reset(self):
@@ -317,7 +292,7 @@ class LCMAgent():
         self.clock_inputs[:, 2] = torch.sin(2 * np.pi * self.foot_indices[2])
         self.clock_inputs[:, 3] = torch.sin(2 * np.pi * self.foot_indices[3])
 
-# 注释掉了下面camera相关代码
+# camera related
 # --------------------------------------------------------------------
         # images = {'front': self.se.get_camera_front(),
         #           'bottom': self.se.get_camera_bottom(),
