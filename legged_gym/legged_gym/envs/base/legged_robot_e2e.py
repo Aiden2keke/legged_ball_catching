@@ -379,9 +379,9 @@ class LeggedRobotE2E(LeggedRobot):
         # Forward velocity (body frame x)
         forward_vel = self.base_lin_vel[:, 0].clip(min=0.0)
 
-        # Smooth deceleration: scale from 1.0 at >2m to 0.0 at <sigma_tight
+        # Smooth deceleration: scale from 1.0 at >1m to 0.0 at <sigma_tight
         sigma = self.cfg.rewards.position_target_sigma_tight
-        dist_scale = torch.clamp((distance - sigma) / 1.5, min=0.0, max=1.0)
+        dist_scale = torch.clamp((distance - sigma) / 0.5, min=0.0, max=1.0)
 
         # Far: reward forward velocity (scaled down near target)
         far_reward = forward_vel * good_dir * dist_scale / 4.5

@@ -1,9 +1,9 @@
 import os
 import torch
 
-run_name     = "2" # change to your log dir
+run_name     = "9-4" # change to your log dir
 # model_iters  = [5000, 6000, 7500, 10000, 13000, 15000, 20000, 25000, 30000]  # many checkpoints
-model_iters  = [9000, 11500, 16500] # change to your iteration numbers
+model_iters  = [7500, 9000, 11500, 16500] # change to your iteration numbers
 base_log_dir = "/home/yd/program/legged_ball_catching_end2end/legged_gym/logs/go2_e2e_v3" # change to your log dir
 
 for model_iter in model_iters:

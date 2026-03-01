@@ -158,17 +158,14 @@ data = mujoco.MjData(model)
 # NOTE: User needs to update this with their actual e2e run name/folder later.
 ################################
 device = torch.device("cuda")
-run_name = "go2_e2e_v3" # placeholder for folder/run
+run_name = "9-7500"
 actor = Actor(num_obs=48+32, num_actions=12, hidden_dims=[512, 256, 128])
-# TODO: Update path below to the actual exported actor.pth from your V3 fine-tuning
-actor.load_state_dict(torch.load(actor_dir + f"/actor_oracle_e2e2-9000.pth")) 
+actor.load_state_dict(torch.load(actor_dir + f"/actor_oracle_e2e{run_name}.pth"))
 actor = actor.to(device)
 actor.eval()
 
-# No teacher-student in E2E, we use the simple MLP encoder for proprio history
 proprio_encoder = MLPEncoder(input_dim=48*5, hidden_dims=[512, 256, 128])
-# TODO: Update path below to the actual exported encoder.pth
-proprio_encoder.load_state_dict(torch.load(proprio_encoder_dir + f"/proprio_oracle_e2e2-9000.pth"))
+proprio_encoder.load_state_dict(torch.load(proprio_encoder_dir + f"/proprio_oracle_e2e{run_name}.pth"))
 proprio_encoder = proprio_encoder.to(device)
 proprio_encoder.eval()
 
