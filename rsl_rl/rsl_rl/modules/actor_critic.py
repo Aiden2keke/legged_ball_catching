@@ -168,7 +168,7 @@ class ActorCritic(nn.Module):
         self.update_distribution(observations, observations_history, critic_observations)
         return self.distribution.sample()
     
-    def act_student_reinforcing(self, observations, observations_history, critic_observations):
+    def act_student_reinforcing(self, observations, observations_history, critic_observations, **kwargs):
         self.update_distribution_student_reinforcing(observations, observations_history, critic_observations)
         return self.distribution.sample()
     

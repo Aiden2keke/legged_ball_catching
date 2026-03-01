@@ -211,8 +211,8 @@ class LeggedRobot(BaseTask):
         self.last_foot_velocities = self.foot_velocities.clone()
 
         if self.viewer and self.enable_viewer_sync and self.debug_viz:
-            self._draw_debug_vis()
             self.gym.clear_lines(self.viewer)
+            self._draw_debug_vis()
         # Visualize the target point
             if not hasattr(self, "tgt_sphere_geom"):
                 self.tgt_sphere_geom = gymutil.WireframeSphereGeometry(0.05, 8, 8, None, color=(0, 0, 1))
