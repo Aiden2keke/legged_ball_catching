@@ -158,7 +158,7 @@ data = mujoco.MjData(model)
 # NOTE: User needs to update this with their actual e2e run name/folder later.
 ################################
 device = torch.device("cuda")
-run_name = "9-7500"
+run_name = "10-1-9000"
 actor = Actor(num_obs=48+32, num_actions=12, hidden_dims=[512, 256, 128])
 actor.load_state_dict(torch.load(actor_dir + f"/actor_oracle_e2e{run_name}.pth"))
 actor = actor.to(device)

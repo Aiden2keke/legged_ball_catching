@@ -23,7 +23,7 @@ class GO2E2ECfg(LeggedRobotCfg):
         obs_history_length = 5
 
     class commands(LeggedRobotCfg.commands):
-        max_speed = 1.5
+        max_speed = 2.0
         landing_time_min = 1.0
         landing_time_max = 10.0
         curriculum = True
@@ -90,11 +90,11 @@ class GO2E2ECfg(LeggedRobotCfg):
             # === Locomotion penalties (V1 Stable Sim2Sim) ===
             torques = -0.0005
             dof_pos_limits = -10.0
-            dof_vel = -0.003           # V1 stable
+            dof_vel = -0.005           # slightly stiffer to maintain gait at higher speeds
             lin_vel_z = -3.0
             ang_vel_xy = -0.1
             dof_acc = -5.0e-7          # V1 stable
-            action_rate = -0.02        # V1 stable
+            action_rate = -0.05        # stronger penalty for jerky motions
             orientation = -30.0
             collision = -2.0           # V1 stable
             action_smoothness = -0.002 # V1 stable (avoids massively negative rewards)
@@ -112,7 +112,7 @@ class GO2E2ECfg(LeggedRobotCfg):
             exploration = 3.0
 
             # === Anti-overshoot ===
-            velo_lim = -2.0             # V1 stable (softer anti-overshoot)
+            velo_lim = -5.0             # Strict anti-overshoot when close to target
 
             # === Task rewards ===
             task = 12.0                 # High task completion
@@ -120,7 +120,7 @@ class GO2E2ECfg(LeggedRobotCfg):
             reach_landing_pos = 15.0
             track_ball_landing = 10.0
             reach_pos_target_tight = 12.0
-            tracking_position = 3.0
+            tracking_position = 5.0
             tracking_yaw = 2.0
 
             # === Gait quality ===
@@ -128,9 +128,9 @@ class GO2E2ECfg(LeggedRobotCfg):
             stalling_penalty = 2.0
             stop_yaw_vel = -0.2
 
-            # Disabled
+            # Disabled / Specialized
             termination = -0.
-            stand_still_pos = 0.0
+            stand_still_pos = 2.0       # Encourage stopping at the landing point
             tracking_lin_vel = 0.0
             tracking_ang_vel = 0.0
 
