@@ -1,29 +1,26 @@
 """
-V2: Maximum Speed — Highest velo_dir and task rewards, but keeps
-strict sim2sim constraints.
-Hypothesis: Stronger forward speed incentive will overcome the strict
-sim2sim gait penalties and force fast, clean running.
+V2: Dense Tracking + Modest Speed — Balanced approach solving slowness
+through dense rewards rather than raw speed incentives.
+Hypothesis: Sometimes robots move slow because they are uncertain of the
+path, not because they lack speed rewards.
 """
 from legged_gym.envs.go2.go2_e2e_config import GO2E2ECfg, GO2E2ECfgPPO
+
 
 class GO2E2EV2Cfg(GO2E2ECfg):
     class rewards(GO2E2ECfg.rewards):
         class scales(GO2E2ECfg.rewards.scales):
-            # Strict sim2sim retained from base
+            velo_dir = 10.0            # slightly lower than base
 
-            # Forward speed: VERY HIGH
-            velo_dir = 18.0            # 1.5x base
-            exploration = 5.0
-            velo_lim = -5.0            # stronger anti-overshoot required for high speed
+            # Dense Tracking: VERY HIGH
+            task = 8.0
+            reach_landing_pos = 30.0   # Massive dense tracking
+            track_ball_landing = 20.0  # Massive dense tracking
+            tracking_position = 8.0
+            tracking_yaw = 4.0
 
-            # Task & Gait
-            task = 15.0
-            catch_bonus = 8.0
-            reach_landing_pos = 20.0
-            track_ball_landing = 15.0
-            reach_pos_target_tight = 15.0
 
 class GO2E2EV2CfgPPO(GO2E2ECfgPPO):
     class runner(GO2E2ECfgPPO.runner):
-        run_name = 'v2_max_speed'
+        run_name = 'v2_dense_tracker'
         experiment_name = 'go2_e2e_v2'

@@ -1,33 +1,35 @@
 """
-V5: Dense Tracking Dominant — High dense tracking rewards throughout
-the approach, guiding the robot strictly to the landing zone.
+V5: Agile Explorer — Lower action and joint penalties to allow
+"messier" but potentially much faster running gaits.
+Hypothesis: Our sim2sim penalties might be preventing the discovery
+of a highly energetic bounding gait needed to catch far balls.
 """
 from legged_gym.envs.go2.go2_e2e_config import GO2E2ECfg, GO2E2ECfgPPO
 
+
 class GO2E2EV5Cfg(GO2E2ECfg):
+    class commands(GO2E2ECfg.commands):
+        max_speed = 3.0                # maximum allowed speed
+
     class rewards(GO2E2ECfg.rewards):
         class scales(GO2E2ECfg.rewards.scales):
-            # Strict sim2sim retained from base
+            # Relaxed gait
+            dof_vel = -0.001           # very light
+            action_rate = -0.01        # very light
+            action_smoothness = -0.001 # very light
+            dof_pos = -0.5             # very light
+            collision = -0.5           # allow some shuffling if it helps
+            feet_air_time = 0.0        # don't force a specific gait
 
-            # Speed
-            velo_dir = 10.0
-            exploration = 3.0
-            velo_lim = -3.0
+            # Driving goals
+            velo_dir = 15.0            # fast forward
+            task = 15.0                # high task
 
-            # Task: Dense tracking VERY HIGH
-            task = 10.0
-            catch_bonus = 5.0
-            reach_landing_pos = 30.0   # extremely high dense distance reward
-            track_ball_landing = 20.0  # extremely high dense tracking
-            reach_pos_target_tight = 12.0
-            tracking_position = 8.0
-            tracking_yaw = 3.0
-
-            # Gait
-            feet_air_time = 5.0
-            stalling_penalty = 2.0
 
 class GO2E2EV5CfgPPO(GO2E2ECfgPPO):
+    class algorithm(GO2E2ECfgPPO.algorithm):
+        entropy_coef = 0.02            # maximum exploration
+
     class runner(GO2E2ECfgPPO.runner):
-        run_name = 'v5_dense_tracking'
+        run_name = 'v5_agile_explorer'
         experiment_name = 'go2_e2e_v5'

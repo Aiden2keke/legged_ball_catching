@@ -87,35 +87,35 @@ class GO2E2ECfg(LeggedRobotCfg):
         rew_duration = 2.0
 
         class scales(LeggedRobotCfg.rewards.scales):
-            # === Locomotion penalties (Sim2Sim constraints) ===
+            # === Locomotion penalties (V1 Stable Sim2Sim) ===
             torques = -0.0005
             dof_pos_limits = -10.0
-            dof_vel = -0.005           # slightly stronger to prevent vibration
+            dof_vel = -0.003           # V1 stable
             lin_vel_z = -3.0
             ang_vel_xy = -0.1
-            dof_acc = -1.0e-6          # stronger to prevent high-freq jitter
-            action_rate = -0.05        # stronger for motor smoothness
+            dof_acc = -5.0e-7          # V1 stable
+            action_rate = -0.02        # V1 stable
             orientation = -30.0
-            collision = -5.0           # strong penalty for calf/thigh collision (prevents shuffling)
-            action_smoothness = -0.005 # smooth actions required for physical robot
+            collision = -2.0           # V1 stable
+            action_smoothness = -0.002 # V1 stable (avoids massively negative rewards)
             power = -5e-4
             feet_acceleration = -1e-9
             feet_height = -2.0
             base_height = -20.0
-            dof_pos = -4.0             # very strong: force legs strictly under body
+            dof_pos = -2.0             # V1 stable: looser legs, prevents freezing
 
             # === Posture ===
             upright_bonus = 10.0
 
-            # === Direction: force fast forward walking ===
-            velo_dir = 12.0             # increased for faster reaching
+            # === Direction: fast forward walking ===
+            velo_dir = 12.0             # High to fix "slow" issue
             exploration = 3.0
 
             # === Anti-overshoot ===
-            velo_lim = -3.0             # penalizes speed > 0.3 only within 1.0m of target
+            velo_lim = -2.0             # V1 stable (softer anti-overshoot)
 
             # === Task rewards ===
-            task = 10.0
+            task = 12.0                 # High task completion
             catch_bonus = 5.0
             reach_landing_pos = 15.0
             track_ball_landing = 10.0
@@ -123,8 +123,8 @@ class GO2E2ECfg(LeggedRobotCfg):
             tracking_position = 3.0
             tracking_yaw = 2.0
 
-            # === Gait quality (Crucial for Sim2Sim) ===
-            feet_air_time = 5.0         # strongly reward picking up feet (steppy gait)
+            # === Gait quality ===
+            feet_air_time = 3.0         # V1 stable
             stalling_penalty = 2.0
             stop_yaw_vel = -0.2
 
