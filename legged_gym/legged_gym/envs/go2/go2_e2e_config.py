@@ -78,7 +78,7 @@ class GO2E2ECfg(LeggedRobotCfg):
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.25
+        base_height_target = 0.32
         only_positive_rewards = False
         position_target_sigma = 0.5
         position_target_sigma_soft = 2.0
@@ -88,51 +88,43 @@ class GO2E2ECfg(LeggedRobotCfg):
 
         class scales(LeggedRobotCfg.rewards.scales):
             # === Locomotion penalties (V1 Stable Sim2Sim) ===
-            torques = -0.0005
-            dof_pos_limits = -10.0
-            dof_vel = -0.005           # slightly stiffer to maintain gait at higher speeds
-            lin_vel_z = -3.0
-            ang_vel_xy = -0.1
-            dof_acc = -5.0e-7          # V1 stable
-            action_rate = -0.05        # stronger penalty for jerky motions
-            orientation = -30.0
-            collision = -2.0           # V1 stable
-            action_smoothness = -0.002 # V1 stable (avoids massively negative rewards)
-            power = -5e-4
+            torques = -0.0001
+            dof_pos_limits = -3.0
+            dof_vel = -0.001
+            lin_vel_z = -1.0
+            ang_vel_xy = -0.02
+            dof_acc = -2.0e-7
+            action_rate = -0.005
+            orientation = -2.0          # very loose
+            collision = -0.5
+            action_smoothness = -0.001
+            power = -1e-4
             feet_acceleration = -1e-9
-            feet_height = -2.0
-            base_height = -20.0
-            dof_pos = -2.0             # V1 stable: looser legs, prevents freezing
+            feet_height = -0.5
+            base_height = -2.0
 
-            # === Posture ===
-            upright_bonus = 10.0
+            # === Direction & Anti-overshoot ===
+            velo_dir = 10.0             # Encourage moving to target
+            velo_lim = -5.0             # Brake aggressively near target
 
-            # === Direction: fast forward walking ===
-            velo_dir = 12.0             # High to fix "slow" issue
-            exploration = 3.0
-
-            # === Anti-overshoot ===
-            velo_lim = -5.0             # Strict anti-overshoot when close to target
-
-            # === Task rewards ===
-            task = 12.0                 # High task completion
-            catch_bonus = 5.0
-            reach_landing_pos = 15.0
-            track_ball_landing = 10.0
-            reach_pos_target_tight = 12.0
-            tracking_position = 5.0
-            tracking_yaw = 2.0
+            # === Task Tracking ===
+            task = 20.0                 # 2x current
+            catch_bonus = 12.0          # 2x current
+            reach_landing_pos = 12.0    # 2x current
+            track_ball_landing = 7.0    # 2.5x current
+            reach_pos_target_tight = 8.0
+            tracking_position = 2.0
+            tracking_yaw = 1.0
 
             # === Gait quality ===
-            feet_air_time = 3.0         # V1 stable
-            stalling_penalty = 2.0
-            stop_yaw_vel = -0.2
-
-            # Disabled / Specialized
+            feet_air_time = 3.0         # Fix crawling: must be high enough to encourage trots!
+            exploration = 0.5
+            stalling_penalty = 0.5
+            stop_yaw_vel = -0.05
             termination = -0.
-            stand_still_pos = 2.0       # Encourage stopping at the landing point
-            tracking_lin_vel = 0.0
-            tracking_ang_vel = 0.0
+            stand_still_pos = -1.0      # MUST BE NEGATIVE. Evaluates deviation from pos.
+            tracking_lin_vel = 1
+            tracking_ang_vel = 0.5
 
 
 class GO2E2ECfgPPO(LeggedRobotCfgPPO):
