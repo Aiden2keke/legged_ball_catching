@@ -90,14 +90,14 @@ class GO2E2ECfg(LeggedRobotCfg):
             # === Locomotion penalties (V1 Stable Sim2Sim) ===
             torques = -0.0001
             dof_pos_limits = -3.0
-            dof_vel = -0.001
-            lin_vel_z = -1.0
-            ang_vel_xy = -0.02
-            dof_acc = -2.0e-7
-            action_rate = -0.005
-            orientation = -2.0          # very loose
+            dof_vel = -0.002            # 翻倍，约束关节速度，防止乱飞
+            lin_vel_z = -2.0            # 增强Z轴惩罚，抑制爬行趋势
+            ang_vel_xy = -0.05
+            dof_acc = -1.0e-6           # 增强加速度惩罚，使动作更加平滑
+            action_rate = -0.01
+            orientation = -5.0          # 增强姿态约束，强烈惩罚俯仰和横滚，保持正着走
             collision = -0.5
-            action_smoothness = -0.001
+            action_smoothness = -0.005  # 增强动作平滑度约束
             power = -1e-4
             feet_acceleration = -1e-9
             feet_height = -0.5
@@ -105,7 +105,7 @@ class GO2E2ECfg(LeggedRobotCfg):
 
             # === Direction & Anti-overshoot ===
             velo_dir = 10.0             # Encourage moving to target
-            velo_lim = -5.0             # Brake aggressively near target
+            velo_lim = -12.0            # 从V2吸取经验：极其实严苛的限速，强行防过冲
 
             # === Task Tracking ===
             task = 20.0                 # 2x current
@@ -122,7 +122,7 @@ class GO2E2ECfg(LeggedRobotCfg):
             stalling_penalty = 0.5
             stop_yaw_vel = -0.05
             termination = -0.
-            stand_still_pos = -1.0      # MUST BE NEGATIVE. Evaluates deviation from pos.
+            stand_still_pos = -3.0      # 从V2吸取经验：强制在目标点冻结姿态，防过冲
             tracking_lin_vel = 1
             tracking_ang_vel = 0.5
 
